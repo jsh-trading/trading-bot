@@ -1026,68 +1026,105 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── challenge tracker ────────────────────────────────────────────────────────
-_CH_MILESTONES = [
-    (CHALLENGE_START, 400,            "$200 → $400  ·  First Double"),
-    (400,             800,            "$400 → $800  ·  Second Double"),
-    (800,             CHALLENGE_GOAL, "$800 → $1,000  ·  Final Push"),
-]
-_ms_lo, _ms_hi, _ms_label = next(
-    ((lo, hi, lbl) for lo, hi, lbl in _CH_MILESTONES if CHALLENGE_CURRENT < hi),
-    _CH_MILESTONES[-1],
+# ── challenge tracker (5-card layout) ────────────────────────────────────────
+
+# — pre-compute all values —
+_ch_pct_overall = min(1.0, (CHALLENGE_CURRENT - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START))
+_ch_gain        = CHALLENGE_CURRENT - CHALLENGE_START
+_ch_ret_pct     = (_ch_gain / CHALLENGE_START) * 100
+_ch_gain_color  = "#00c853" if _ch_gain >= 0 else "#ff1744"
+_ch_gain_sign   = "+" if _ch_gain >= 0 else ""
+_ch_prog_w      = f"{_ch_pct_overall * 100:.1f}"
+_max_trade      = round(BUYING_POWER * 0.50)
+
+_tracker_pos_df = _load_options_positions()
+_open_pos_df    = _tracker_pos_df[_tracker_pos_df["status"] == "Open"] if not _tracker_pos_df.empty else pd.DataFrame()
+_cap_at_risk    = float((_open_pos_df["entry_price"] * _open_pos_df["qty"] * 100).sum()) if not _open_pos_df.empty else 0.0
+_risk_raw       = (_cap_at_risk / CHALLENGE_CURRENT * 100) if CHALLENGE_CURRENT > 0 else 0
+_risk_score     = min(100, max(0, round(_risk_raw)))
+_risk_label     = "Low" if _risk_score < 30 else ("Moderate" if _risk_score < 60 else "Elevated")
+_risk_color     = "#00c853" if _risk_score < 30 else ("#ff9800" if _risk_score < 60 else "#ff1744")
+
+# — position badges for card 4 —
+_pos_badges_html = ""
+_today_ch = date.today()
+for _, _pr in _open_pos_df.iterrows():
+    try:
+        _exp_d  = datetime.strptime(str(_pr["expiry"]), "%Y-%m-%d").date()
+        _dte_ch = (_exp_d - _today_ch).days
+        _dte_s  = f"{_dte_ch}d"
+    except Exception:
+        _dte_s = "?"
+    _pos_badges_html += (
+        f'<span style="display:inline-flex;align-items:center;gap:4px;background:#1a1a1a;'
+        f'color:#fff;border-radius:5px;padding:2px 7px;font-size:0.7rem;font-weight:700;margin:2px 2px 0 0;">'
+        f'{_pr["ticker"]} <span style="color:#aaa;font-weight:400;">${float(_pr["strike"]):.0f} · {_dte_s}</span></span>'
+    )
+if not _pos_badges_html:
+    _pos_badges_html = '<span style="color:#aaa;font-size:0.8rem;">No open positions</span>'
+
+# — risk gradient marker bar —
+_risk_bar_html = (
+    f'<div style="position:relative;background:linear-gradient(to right,#00c853,#ffeb3b,#ff1744);'
+    f'border-radius:100px;height:6px;margin-top:8px;">'
+    f'<div style="position:absolute;top:-3px;left:calc({_risk_score}% - 6px);'
+    f'width:12px;height:12px;background:#fff;border:2px solid {_risk_color};border-radius:50%;box-shadow:0 0 3px rgba(0,0,0,.2);"></div>'
+    f'</div>'
 )
-_ch_pct_overall  = min(1.0, (CHALLENGE_CURRENT - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START))
-_ch_pct_ms       = min(1.0, max(0.0, (CHALLENGE_CURRENT - _ms_lo) / (_ms_hi - _ms_lo)))
-_ch_gain         = CHALLENGE_CURRENT - CHALLENGE_START
-_ring_r          = 38
-_ring_circ       = round(2 * math.pi * _ring_r, 2)
-_ring_offset     = round(_ring_circ * (1 - _ch_pct_overall), 2)
 
 _ch_tracker_col, _ch_btn_col = st.columns([11, 1])
 with _ch_tracker_col:
-    st.markdown(f"""
-<div style="background:#fff;border:1px solid #f0f0f0;border-radius:16px;box-shadow:0 2px 16px rgba(0,0,0,0.08);padding:22px 26px;margin-bottom:4px;">
-  <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;">
-    <div style="min-width:150px;">
-      <div style="font-size:0.63rem;color:#424242;text-transform:uppercase;letter-spacing:.09em;font-weight:700;">Account Balance</div>
-      <div style="font-size:3.0rem;font-weight:900;color:#00c853;line-height:1.0;letter-spacing:-.04em;margin-top:4px;">${CHALLENGE_CURRENT:,.2f}</div>
-      <div style="font-size:0.74rem;color:#999;margin-top:6px;">+${_ch_gain:.2f} from ${CHALLENGE_START:,.2f}</div>
-      <div style="font-size:0.8rem;font-weight:700;color:#1565c0;margin-top:6px;">BP: ${BUYING_POWER:,.2f}</div>
-    </div>
-    <div style="position:relative;width:110px;height:110px;flex-shrink:0;">
-      <svg width="110" height="110" viewBox="0 0 100 100" style="transform:rotate(-90deg);">
-        <circle cx="50" cy="50" r="38" fill="none" stroke="#f0f0f0" stroke-width="10"/>
-        <circle cx="50" cy="50" r="38" fill="none" stroke="#00c853" stroke-width="10" stroke-dasharray="{_ring_circ}" stroke-dashoffset="{_ring_offset}" stroke-linecap="round"/>
-      </svg>
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;line-height:1.2;">
-        <div style="font-size:1.15rem;font-weight:900;color:#000;">{_ch_pct_overall*100:.0f}%</div>
-        <div style="font-size:0.58rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;">to goal</div>
-      </div>
-    </div>
-    <div style="flex:1;min-width:200px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-        <span style="font-size:0.8rem;color:#000;font-weight:700;">🎯 {_ms_label}</span>
-        <span style="font-size:0.78rem;color:#00c853;font-weight:700;">{_ch_pct_ms*100:.1f}%</span>
-      </div>
-      <div style="background:#f2f2f2;border-radius:100px;height:6px;overflow:hidden;">
-        <div style="background:#00c853;border-radius:100px;height:6px;width:{_ch_pct_ms*100:.2f}%;"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px;">
-        <span style="font-size:0.70rem;color:#999;">${_ms_lo:,.0f}</span>
-        <span style="font-size:0.70rem;color:#999;">${_ms_hi:,.0f}</span>
-      </div>
-    </div>
-    <div style="min-width:110px;text-align:right;">
-      <div style="font-size:0.63rem;color:#424242;text-transform:uppercase;letter-spacing:.09em;font-weight:700;">Goal</div>
-      <div style="font-size:1.9rem;font-weight:800;color:#000;letter-spacing:-.02em;margin-top:4px;">${CHALLENGE_GOAL:,.0f}</div>
-      <div style="font-size:0.72rem;color:#999;margin-top:6px;">×{CHALLENGE_GOAL/CHALLENGE_START:.1f}x from start</div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown(
+        '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:6px;">'
+
+        # Card 1 — Total Value
+        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Total Value</div>'
+        f'<div style="font-size:1.9rem;font-weight:900;color:#00c853;line-height:1.1;letter-spacing:-.03em;margin-top:4px;">${CHALLENGE_CURRENT:,.2f}</div>'
+        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">Started: ${CHALLENGE_START:,.2f} · Goal: ${CHALLENGE_GOAL:,.0f}</div>'
+        f'<div style="background:#f2f2f2;border-radius:100px;height:5px;overflow:hidden;margin-top:8px;">'
+        f'<div style="background:#00c853;border-radius:100px;height:5px;width:{_ch_prog_w}%;"></div></div>'
+        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">{_ch_pct_overall*100:.1f}% to goal</div>'
+        f'</div>'
+
+        # Card 2 — Total Return
+        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Total Return</div>'
+        f'<div style="font-size:1.9rem;font-weight:900;color:{_ch_gain_color};line-height:1.1;letter-spacing:-.03em;margin-top:4px;">{_ch_gain_sign}${_ch_gain:,.2f}</div>'
+        f'<div style="font-size:0.88rem;font-weight:700;color:{_ch_gain_color};margin-top:4px;">{"▲" if _ch_gain >= 0 else "▼"} {_ch_ret_pct:+.1f}%</div>'
+        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">From ${CHALLENGE_START:,.2f} baseline</div>'
+        f'</div>'
+
+        # Card 3 — Buying Power
+        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Buying Power</div>'
+        f'<div style="font-size:1.9rem;font-weight:900;color:#1565c0;line-height:1.1;letter-spacing:-.03em;margin-top:4px;">${BUYING_POWER:,.2f}</div>'
+        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">Available to deploy</div>'
+        f'<div style="display:inline-block;background:#e8f5e9;color:#2e7d32;font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;margin-top:8px;">Max 1 trade: ${_max_trade}</div>'
+        f'</div>'
+
+        # Card 4 — Active Positions
+        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Active Positions</div>'
+        f'<div style="font-size:1.9rem;font-weight:900;color:#000;line-height:1.1;letter-spacing:-.03em;margin-top:4px;">{len(_open_pos_df)}</div>'
+        f'<div style="margin-top:6px;display:flex;flex-wrap:wrap;">{_pos_badges_html}</div>'
+        f'</div>'
+
+        # Card 5 — Risk Score
+        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Risk Score</div>'
+        f'<div style="font-size:1.9rem;font-weight:900;color:{_risk_color};line-height:1.1;letter-spacing:-.03em;margin-top:4px;">{_risk_score}/100</div>'
+        f'<div style="font-size:0.82rem;font-weight:700;color:{_risk_color};margin-top:2px;">{_risk_label}</div>'
+        f'{_risk_bar_html}'
+        f'<div style="font-size:0.68rem;color:#aaa;margin-top:6px;">Capital at risk: ${_cap_at_risk:,.0f}</div>'
+        f'</div>'
+
+        '</div>',
+        unsafe_allow_html=True,
+    )
 with _ch_btn_col:
     st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
-    if st.button("✏️", key="ch_edit_btn", help="Update balance", use_container_width=True):
+    if st.button("✏️", key="ch_edit_btn", help="Update balance / buying power", use_container_width=True):
         st.session_state["ch_editing"] = not st.session_state.get("ch_editing", False)
 
 if st.session_state.get("ch_editing", False):
