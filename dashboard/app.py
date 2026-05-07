@@ -1447,6 +1447,40 @@ with tab2:
                     _pnl_d_str = "—"
                     _pnl_p_str = "—"
 
+                # Estimated Greeks
+                _greeks_html = ""
+                try:
+                    _dte_g = (datetime.strptime(str(row["expiry"]), "%Y-%m-%d").date() - today).days
+                    if _dte_g > 0 and live is not None and float(row["strike"]) > 0 and float(row["entry_price"]) > 0:
+                        _S      = float(live)
+                        _K      = float(row["strike"])
+                        _opt_p  = float(row["entry_price"])
+                        _iv_est = (_opt_p / _S) * math.sqrt(365 / _dte_g) * 4
+                        _delta  = max(0.05, min(0.95, 0.5 + (_S - _K) / (2 * _K)))
+                        _theta  = -_opt_p * 0.05 / _dte_g
+                        _pop    = _delta * 100
+                        _dc     = "#00c853" if _delta > 0.5 else "#888"
+                        _pc_pop = "#00c853" if _pop >= 50 else ("#ff9800" if _pop >= 30 else "#ff1744")
+                        def _gf(lbl, val, col="#222"):
+                            return (
+                                f'<div><div style="color:#aaa;font-size:0.6rem;text-transform:uppercase;'
+                                f'letter-spacing:.07em;font-weight:600;">{lbl}</div>'
+                                f'<div style="color:{col};font-weight:700;font-size:0.88rem;">{val}</div></div>'
+                            )
+                        _greeks_html = (
+                            '<div style="margin-top:12px;border-top:1px solid #f5f5f5;padding-top:10px;">'
+                            '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;'
+                            'font-weight:600;color:#bbb;margin-bottom:8px;">Greeks (Est.)</div>'
+                            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">'
+                            + _gf("Delta",    f"{_delta:.2f}",              _dc)
+                            + _gf("Theta",    f"-${abs(_theta):.3f}/day",   "#ff1744")
+                            + _gf("IV (Est)", f"{_iv_est*100:.0f}%",        "#424242")
+                            + _gf("P(Profit)",f"{_pop:.0f}%",               _pc_pop)
+                            + '</div></div>'
+                        )
+                except Exception:
+                    _greeks_html = ""
+
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
                 st.markdown(f"""
 <div class="options-card">
@@ -1464,7 +1498,7 @@ with tab2:
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
   </div>
-  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}
+  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}
 </div>
 """, unsafe_allow_html=True)
 
