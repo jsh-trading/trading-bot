@@ -1401,7 +1401,7 @@ with tab2:
             st.markdown('<div class="card"><span style="color:#aaa;">No open positions. Add one below.</span></div>', unsafe_allow_html=True)
         else:
             today = date.today()
-            for _, row in positions.iterrows():
+            for _pos_num, (_, row) in enumerate(positions.iterrows(), start=1):
                 live = _live_price(row["ticker"])
                 live_str = f"${live:.2f}" if live is not None else "—"
 
@@ -1499,7 +1499,7 @@ with tab2:
     <span class="ticker">{row['ticker']}</span>
     <span class="badge {type_cls}">{row['type']}</span>
     <span class="badge {status_cls}">{row['status']}</span>{_ew_inline}
-    <span style="margin-left:auto;color:#ccc;font-size:0.78rem;">#{int(row['id'])}</span>
+    <span style="margin-left:auto;color:#ccc;font-size:0.78rem;">#{_pos_num}</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:14px;">
     {_field("Strike",    f"${row['strike']:.2f}")}
@@ -1554,7 +1554,7 @@ with tab2:
                             unsafe_allow_html=True,
                         )
 
-                if st.button(f"🗑 Remove #{int(row['id'])}", key=f"del_{row['id']}"):
+                if st.button(f"🗑 Remove #{_pos_num}", key=f"del_{row['id']}"):
                     _delete_options_position(int(row["id"]))
                     st.rerun()
 
