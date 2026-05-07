@@ -1081,44 +1081,44 @@ with _ch_tracker_col:
 
         # Card 1 — Total Value
         f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
-        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Total Value</div>'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:600;color:#333;">Total Value</div>'
         f'<div style="font-size:1.9rem;font-weight:900;color:#00c853;line-height:1.1;letter-spacing:-.03em;margin-top:4px;">${CHALLENGE_CURRENT:,.2f}</div>'
-        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">Started: ${CHALLENGE_START:,.2f} · Goal: ${CHALLENGE_GOAL:,.0f}</div>'
+        f'<div style="font-size:0.68rem;color:#555;font-weight:500;margin-top:4px;">Started: ${CHALLENGE_START:,.2f} · Goal: ${CHALLENGE_GOAL:,.0f}</div>'
         f'<div style="background:#f2f2f2;border-radius:100px;height:5px;overflow:hidden;margin-top:8px;">'
         f'<div style="background:#00c853;border-radius:100px;height:5px;width:{_ch_prog_w}%;"></div></div>'
-        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">{_ch_pct_overall*100:.1f}% to goal</div>'
+        f'<div style="font-size:0.68rem;color:#555;font-weight:500;margin-top:4px;">{_ch_pct_overall*100:.1f}% to goal</div>'
         f'</div>'
 
         # Card 2 — Total Return
         f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
-        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Total Return</div>'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:600;color:#333;">Total Return</div>'
         f'<div style="font-size:1.9rem;font-weight:900;color:{_ch_gain_color};line-height:1.1;letter-spacing:-.03em;margin-top:4px;">{_ch_gain_sign}${_ch_gain:,.2f}</div>'
         f'<div style="font-size:0.88rem;font-weight:700;color:{_ch_gain_color};margin-top:4px;">{"▲" if _ch_gain >= 0 else "▼"} {_ch_ret_pct:+.1f}%</div>'
-        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">From ${CHALLENGE_START:,.2f} baseline</div>'
+        f'<div style="font-size:0.68rem;color:#555;font-weight:500;margin-top:4px;">From ${CHALLENGE_START:,.2f} baseline</div>'
         f'</div>'
 
         # Card 3 — Buying Power
         f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
-        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Buying Power</div>'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:600;color:#333;">Buying Power</div>'
         f'<div style="font-size:1.9rem;font-weight:900;color:#1565c0;line-height:1.1;letter-spacing:-.03em;margin-top:4px;">${BUYING_POWER:,.2f}</div>'
-        f'<div style="font-size:0.68rem;color:#aaa;margin-top:4px;">Available to deploy</div>'
+        f'<div style="font-size:0.68rem;color:#555;font-weight:500;margin-top:4px;">Available to deploy</div>'
         f'<div style="display:inline-block;background:#e8f5e9;color:#2e7d32;font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;margin-top:8px;">Max 1 trade: ${_max_trade}</div>'
         f'</div>'
 
         # Card 4 — Active Positions
         f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
-        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Active Positions</div>'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:600;color:#333;">Active Positions</div>'
         f'<div style="font-size:1.9rem;font-weight:900;color:#000;line-height:1.1;letter-spacing:-.03em;margin-top:4px;">{len(_open_pos_df)}</div>'
         f'<div style="margin-top:6px;display:flex;flex-wrap:wrap;">{_pos_badges_html}</div>'
         f'</div>'
 
         # Card 5 — Risk Score
         f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;padding:16px 16px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
-        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:#757575;">Risk Score</div>'
+        f'<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;font-weight:600;color:#333;">Risk Score</div>'
         f'<div style="font-size:1.9rem;font-weight:900;color:{_risk_color};line-height:1.1;letter-spacing:-.03em;margin-top:4px;">{_risk_score}/100</div>'
         f'<div style="font-size:0.82rem;font-weight:700;color:{_risk_color};margin-top:2px;">{_risk_label}</div>'
         f'{_risk_bar_html}'
-        f'<div style="font-size:0.68rem;color:#aaa;margin-top:6px;">Capital at risk: ${_cap_at_risk:,.0f}</div>'
+        f'<div style="font-size:0.68rem;color:#555;font-weight:500;margin-top:6px;">Capital at risk: ${_cap_at_risk:,.0f}</div>'
         f'</div>'
 
         '</div>',
