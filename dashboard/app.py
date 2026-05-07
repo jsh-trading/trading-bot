@@ -17,8 +17,8 @@ import math
 import sqlite3
 import warnings
 import logging
-from datetime import date, datetime, timedelta
-import pytz
+from datetime import date, datetime, timedelta, timezone
+import time as _time
 
 import pandas as pd
 import yfinance as yf
@@ -784,11 +784,13 @@ if "wl_tickers" not in st.session_state:
 # Header
 # ─────────────────────────────────────────────────────────────────────────────
 
+ET = timezone(timedelta(hours=-4))  # EDT (UTC-4 in summer)
+now_et = datetime.now(ET)
 st.markdown(
     '<div class="page-header">'
     '<span class="logo">📈</span>'
     '<span class="title">Trading Desk</span>'
-    f'<span class="timestamp">{datetime.now(pytz.timezone("America/New_York")).strftime("%A, %B %-d · %I:%M %p ET")}</span>'
+    f'<span class="timestamp">{now_et.strftime("%A, %b %d %I:%M %p ET")}</span>'
     '</div>',
     unsafe_allow_html=True,
 )
