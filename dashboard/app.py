@@ -1554,7 +1554,7 @@ with tab2:
                             unsafe_allow_html=True,
                         )
 
-                if st.button(f"🗑 Remove #{_pos_num}", key=f"del_{row['id']}"):
+                if st.button(f"🗑 Remove #{_pos_num}", key=f"del_{_pos_num}"):
                     _delete_options_position(int(row["id"]))
                     st.rerun()
 
