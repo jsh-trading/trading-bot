@@ -1245,22 +1245,21 @@ with tab2:
                 "Trail the stop up on the remainder. A locked-in gain is always better than a loss."
             )
 
-        sc1, sc2 = st.columns([5, 1])
+        sc1, sc2, sc3 = st.columns([4, 2, 1])
         sc1.markdown(
             '<p style="color:#666;font-size:0.88rem;margin:0;">'
             'Momentum plays from watchlist + 200-ticker screener universe — call contracts ≤ $100 total cost.'
             '</p>',
             unsafe_allow_html=True,
         )
-        if sc2.button("↺ Scan", use_container_width=True, key="scan_options"):
-            _scan_options_candidates.clear()
-            st.rerun()
-
-        _hide_movers = st.toggle(
-            "🚫 Hide 5%+ movers (already repriced)",
+        _hide_movers = sc2.toggle(
+            "🚫 Hide 5%+ movers",
             value=True,
             key="hide_movers_toggle",
         )
+        if sc3.button("↺ Scan", use_container_width=True, key="scan_options"):
+            _scan_options_candidates.clear()
+            st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
 
