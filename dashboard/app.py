@@ -1218,6 +1218,8 @@ with tab2:
     # ────────────────────────────────────────────────────────────────────────
 
     with od_tab_b:
+        _hide_movers = st.checkbox("🚫 Hide stocks that moved 5%+ at open (already repriced)", value=True)
+
         with st.expander("📋  Hard Rules — read before placing any trade", expanded=False):
             st.markdown(
                 "**1. No trades within 7 days of earnings** — unless the card is intentionally labeled "
@@ -1251,7 +1253,6 @@ with tab2:
             '</p>',
             unsafe_allow_html=True,
         )
-        _hide_movers = st.toggle("🚫 Hide 5%+ movers (already repriced)", value=True, key="hide_movers_toggle")
         if st.button("↺ Scan", use_container_width=False, key="scan_options"):
             _scan_options_candidates.clear()
             st.rerun()
