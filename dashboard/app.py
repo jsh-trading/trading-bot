@@ -18,6 +18,7 @@ import sqlite3
 import warnings
 import logging
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
@@ -46,10 +47,15 @@ DB_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)
 CHALLENGE_START = 201.99
 CHALLENGE_GOAL  = 1_000.00
 _BALANCE_PATH   = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'balance.txt'))
+_BP_PATH        = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'buying_power.txt'))
 try:
     CHALLENGE_CURRENT = float(open(_BALANCE_PATH).read().strip())
 except Exception:
     CHALLENGE_CURRENT = 325.75
+try:
+    BUYING_POWER = float(open(_BP_PATH).read().strip())
+except Exception:
+    BUYING_POWER = CHALLENGE_CURRENT
 
 
 # ── page config ───────────────────────────────────────────────────────────────
@@ -332,9 +338,15 @@ def _init_db():
                 target2       REAL,
                 target3       REAL,
                 status        TEXT    DEFAULT 'Open',
+                notes         TEXT,
                 created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # migrate existing DB: add notes column if missing
+        try:
+            conn.execute("ALTER TABLE options_positions ADD COLUMN notes TEXT")
+        except Exception:
+            pass
 
 
 def _save_trade(ticker, trade_date, entry, exit_price, notes):
@@ -366,13 +378,14 @@ def _save_options_position(data: dict):
         conn.execute("""
             INSERT INTO options_positions
               (ticker, type, expiry, earnings_date, strike, qty, entry_price,
-               stop_loss, target1, target2, target3, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+               stop_loss, target1, target2, target3, status, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             data["ticker"], data["type"], data["expiry"], data.get("earnings_date"),
             data["strike"], data["qty"], data["entry_price"],
             data.get("stop_loss"), data.get("target1"),
             data.get("target2"), data.get("target3"), "Open",
+            data.get("notes"),
         ))
 
 
@@ -659,6 +672,11 @@ def _save_balance(balance: float) -> None:
         f.write(f"{balance:.2f}")
 
 
+def _save_buying_power(bp: float) -> None:
+    with open(_BP_PATH, "w") as f:
+        f.write(f"{bp:.2f}")
+
+
 def _save_watchlist(tickers: list) -> None:
     path = os.path.join(_ROOT, "data", "watchlist.py")
     with open(path, "w") as f:
@@ -769,7 +787,7 @@ st.markdown(
     '<div class="page-header">'
     '<span class="logo">📈</span>'
     '<span class="title">Trading Desk</span>'
-    f'<span class="timestamp">{datetime.now().strftime("%A, %B %-d · %I:%M %p")}</span>'
+    f'<span class="timestamp">{datetime.now(ZoneInfo("America/New_York")).strftime("%A, %B %-d · %I:%M %p ET")}</span>'
     '</div>',
     unsafe_allow_html=True,
 )
@@ -800,6 +818,7 @@ with _ch_tracker_col:
       <div style="font-size:0.63rem;color:#424242;text-transform:uppercase;letter-spacing:.09em;font-weight:700;">Account Balance</div>
       <div style="font-size:3.0rem;font-weight:900;color:#00c853;line-height:1.0;letter-spacing:-.04em;margin-top:4px;">${CHALLENGE_CURRENT:,.2f}</div>
       <div style="font-size:0.74rem;color:#999;margin-top:6px;">+${_ch_gain:.2f} from ${CHALLENGE_START:,.2f}</div>
+      <div style="font-size:0.8rem;font-weight:700;color:#1565c0;margin-top:6px;">BP: ${BUYING_POWER:,.2f}</div>
     </div>
     <div style="position:relative;width:110px;height:110px;flex-shrink:0;">
       <svg width="110" height="110" viewBox="0 0 100 100" style="transform:rotate(-90deg);">
@@ -838,18 +857,26 @@ with _ch_btn_col:
         st.session_state["ch_editing"] = not st.session_state.get("ch_editing", False)
 
 if st.session_state.get("ch_editing", False):
-    _bv1, _bv2, _bv3 = st.columns([3, 1, 7])
+    _bv1, _bv2, _bv3, _bv4 = st.columns([3, 3, 1, 4])
     _new_bal = _bv1.number_input(
-        "balance",
+        "Balance ($)",
         value=float(CHALLENGE_CURRENT),
         min_value=0.01,
         step=0.01,
         format="%.2f",
         key="ch_bal_input",
-        label_visibility="collapsed",
     )
-    if _bv2.button("Save", key="ch_bal_save", use_container_width=True):
+    _new_bp = _bv2.number_input(
+        "Buying Power ($)",
+        value=float(BUYING_POWER),
+        min_value=0.0,
+        step=0.01,
+        format="%.2f",
+        key="ch_bp_input",
+    )
+    if _bv3.button("Save", key="ch_bal_save", use_container_width=True):
         _save_balance(float(_new_bal))
+        _save_buying_power(float(_new_bp))
         st.session_state["ch_editing"] = False
         st.rerun()
 
@@ -1072,6 +1099,10 @@ with tab2:
                     f'<div style="margin-top:6px;font-size:0.78rem;color:#aaa;">Earnings: {row["earnings_date"]}</div>'
                     if row["earnings_date"] else ""
                 )
+                notes_row = (
+                    f'<div style="margin-top:6px;font-size:0.82rem;color:#424242;">📝 {row["notes"]}</div>'
+                    if row.get("notes") else ""
+                )
 
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
                 st.markdown(f"""
@@ -1092,7 +1123,7 @@ with tab2:
     {_field("P&L $",     "—")}
     {_field("P&L %",     "—")}
   </div>
-  <div style="margin-top:10px;">{targets_html}</div>{earn_row}
+  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}
 </div>
 """, unsafe_allow_html=True)
 
@@ -1123,6 +1154,8 @@ with tab2:
             f_t2 = r4c1.number_input("Target 2 ($)", min_value=0.0, step=0.01, format="%.2f", value=0.0)
             f_t3 = r4c2.number_input("Target 3 ($)", min_value=0.0, step=0.01, format="%.2f", value=0.0)
 
+            f_pos_notes = st.text_input("Notes (optional)", placeholder="Setup rationale, entry trigger, risk reason…", key="pos_notes_input")
+
             save_pos = st.form_submit_button("💾  Save Position", use_container_width=True)
 
         if save_pos:
@@ -1141,6 +1174,7 @@ with tab2:
                     "target1":       float(f_t1) if f_t1 > 0 else None,
                     "target2":       float(f_t2) if f_t2 > 0 else None,
                     "target3":       float(f_t3) if f_t3 > 0 else None,
+                    "notes":         f_pos_notes.strip() or None,
                 })
                 st.success(f"✅ Saved — {f_ticker.upper()} ${f_strike:.2f} {f_type} exp {f_expiry}")
                 st.rerun()
