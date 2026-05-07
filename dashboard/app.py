@@ -18,7 +18,7 @@ import sqlite3
 import warnings
 import logging
 from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+import pytz
 
 import pandas as pd
 import yfinance as yf
@@ -342,11 +342,12 @@ def _init_db():
                 created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # migrate existing DB: add notes column if missing
+        # add notes column to existing DBs that predate the schema change
         try:
             conn.execute("ALTER TABLE options_positions ADD COLUMN notes TEXT")
+            conn.commit()
         except Exception:
-            pass
+            pass  # column already exists — safe to ignore
 
 
 def _save_trade(ticker, trade_date, entry, exit_price, notes):
@@ -787,7 +788,7 @@ st.markdown(
     '<div class="page-header">'
     '<span class="logo">📈</span>'
     '<span class="title">Trading Desk</span>'
-    f'<span class="timestamp">{datetime.now(ZoneInfo("America/New_York")).strftime("%A, %B %-d · %I:%M %p ET")}</span>'
+    f'<span class="timestamp">{datetime.now(pytz.timezone("America/New_York")).strftime("%A, %B %-d · %I:%M %p ET")}</span>'
     '</div>',
     unsafe_allow_html=True,
 )
@@ -1154,7 +1155,7 @@ with tab2:
             f_t2 = r4c1.number_input("Target 2 ($)", min_value=0.0, step=0.01, format="%.2f", value=0.0)
             f_t3 = r4c2.number_input("Target 3 ($)", min_value=0.0, step=0.01, format="%.2f", value=0.0)
 
-            f_pos_notes = st.text_input("Notes (optional)", placeholder="Setup rationale, entry trigger, risk reason…", key="pos_notes_input")
+            f_pos_notes = st.text_area("Notes (optional)", placeholder="Optional: entry reason, setup notes...", height=80, key="pos_notes_input")
 
             save_pos = st.form_submit_button("💾  Save Position", use_container_width=True)
 
