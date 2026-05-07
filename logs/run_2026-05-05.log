@@ -1,0 +1,43 @@
+==================================================================
+  DAILY TRADING BRIEF — Tuesday, May 05 2026
+  Started: 08:00:05  |  Log → logs/run_2026-05-05.log
+==================================================================
+
+[1/3]  Refreshing market data…
+  ✗  FAILED (exit 1)
+     HTTP Error 503: upstream connect error or disconnect/reset before headers. reset reason: connection termination
+     Traceback (most recent call last):
+       File "/Users/kast3000/Desktop/trading-bot/data/market_data.py", line 108, in <module>
+         main()
+         ~~~~^^
+       File "/Users/kast3000/Desktop/trading-bot/data/market_data.py", line 98, in main
+         fetch_and_save(ticker, conn)
+         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+       File "/Users/kast3000/Desktop/trading-bot/data/market_data.py", line 53, in fetch_and_save
+         df = yf.Ticker(ticker).history(period=PERIOD)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 129, in history
+         return self._lazy_load_price_history().history(*args, **kwargs)
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 135, in _lazy_load_price_history
+         self._price_history = PriceHistory(self._data, self.ticker, self._get_ticker_tz(timeout=10))
+                                                                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 160, in _get_ticker_tz
+         if k in self.info:
+                 ^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/ticker.py", line 159, in info
+         return self.get_info()
+                ~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 282, in get_info
+         data = self._quote.info
+                ^^^^^^^^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/scrapers/quote.py", line 505, in info
+         self._fetch_info()
+         ~~~~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/scrapers/quote.py", line 629, in _fetch_info
+         if quote in result and len(result[quote]["result"]) > 0:
+            ^^^^^^^^^^^^^^^
+     TypeError: argument of type 'NoneType' is not a container or iterable
+
+  Aborting — market data refresh failed.

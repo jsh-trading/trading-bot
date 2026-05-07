@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <!-- Unique label — used by launchctl to refer to this job -->
+    <key>Label</key>
+    <string>com.tradingbot.daily</string>
+
+    <!-- The command: python3 run_daily.py -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+        <string>/Users/kast3000/Desktop/trading-bot/run_daily.py</string>
+    </array>
+
+    <!-- Run from the project root so all relative paths resolve correctly -->
+    <key>WorkingDirectory</key>
+    <string>/Users/kast3000/Desktop/trading-bot</string>
+
+    <!--
+        Explicit environment — launchd agents do NOT inherit your shell PATH.
+        HOME is required for yfinance cache and any ~ path lookups.
+    -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/kast3000</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+
+    <!--
+        Schedule: Monday–Friday at 08:00.
+        launchd requires one <dict> per weekday (no range syntax).
+          Weekday 1 = Monday … Weekday 5 = Friday
+        If the Mac is asleep at 8 AM, the job runs the moment it wakes up.
+    -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key><integer>1</integer>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+    </array>
+
+    <!-- Do not run immediately when loaded — only on the schedule above -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!--
+        launchd-level stdout/stderr.  The script itself also writes to
+        logs/run_YYYY-MM-DD.log via its internal _Tee class.
+        These files capture anything that happens before the script starts
+        (e.g. Python import errors, wrong Python path).
+    -->
+    <key>StandardOutPath</key>
+    <string>/Users/kast3000/Desktop/trading-bot/logs/launchd_out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/kast3000/Desktop/trading-bot/logs/launchd_err.log</string>
+
+</dict>
+</plist>

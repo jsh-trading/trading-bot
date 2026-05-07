@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python market_data.py)",
+      "Bash(python3 market_data.py)",
+      "Bash(python3 *)",
+      "Bash(sqlite3 *)",
+      "Bash(python -c \"import ta; print\\('ta version:', ta.__version__\\)\")",
+      "Bash(python -c \"import yfinance; print\\('yfinance ok'\\)\")",
+      "Bash(python -c \"import pandas; print\\('pandas ok'\\)\")",
+      "Skill(claude-api)",
+      "Bash(streamlit run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/)",
+      "Bash(curl -s http://localhost:8501/)",
+      "Bash(curl -s http://localhost:8501/healthz)",
+      "Bash(curl -s http://localhost:8501/component/streamlit.app_view)"
+    ]
+  }
+}

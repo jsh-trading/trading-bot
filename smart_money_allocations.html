@@ -1,0 +1,459 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:1rem 0}
+.tb{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto;margin-bottom:1.5rem}
+.tb button{flex-shrink:0;background:transparent;border:none;border-bottom:2px solid transparent;padding:9px 14px;font-size:12px;font-weight:500;color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.tb button.on{color:var(--color-text-primary);border-bottom:2px solid var(--color-text-primary)}
+.tb button:hover:not(.on){color:var(--color-text-primary);background:var(--color-background-secondary)}
+.pnl{display:none}.pnl.on{display:block}
+
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:1.5rem}
+.score-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.sc-ticker{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+.sc-score{font-size:22px;font-weight:500}
+.score-a{color:#0F6E56}.score-b{color:#1D9E75}.score-c{color:#854F0B}.score-d{color:#993C1D}
+.sc-name{font-size:11px;color:var(--color-text-secondary);margin-bottom:10px}
+.sc-bars{margin-bottom:10px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.bar-lbl{font-size:10px;color:var(--color-text-tertiary);width:80px;flex-shrink:0}
+.bar-track{flex:1;height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}
+.fill-g{background:#1D9E75}.fill-a{background:#EF9F27}.fill-r{background:#E24B4A}.fill-b{background:#378ADD}
+.sc-tags{display:flex;gap:5px;flex-wrap:wrap}
+.tag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px}
+.tag-lt{background:#9FE1CB;color:#085041}
+.tag-qt{background:#FAC775;color:#633806}
+.tag-op{background:#CECBF6;color:#26215C}
+.tag-hi{background:#F5C4B3;color:#712B13}
+
+.alloc-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem}
+.alloc-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.alloc-amt{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.alloc-tag{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px}
+.at-cons{background:#9FE1CB;color:#085041}
+.at-bal{background:#CECBF6;color:#26215C}
+.at-aggr{background:#FAC775;color:#633806}
+.alloc-rows{margin-bottom:1rem}
+.alloc-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.alloc-row:last-child{border-bottom:none}
+.ar-ticker{font-size:13px;font-weight:500;color:var(--color-text-primary);min-width:45px}
+.ar-play{font-size:12px;color:var(--color-text-secondary)}
+.ar-cost{font-size:13px;font-weight:500;color:var(--color-text-primary);text-align:right;white-space:nowrap}
+.ar-ret{font-size:11px;font-weight:500;padding:2px 6px;border-radius:8px;text-align:center;white-space:nowrap}
+.ret-hi{background:#9FE1CB;color:#085041}
+.ret-mid{background:#CECBF6;color:#26215C}
+.ret-lo{background:#FAC775;color:#633806}
+.alloc-total{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md)}
+.at-lbl{font-size:12px;color:var(--color-text-secondary)}
+.at-val{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.alloc-thesis{font-size:12px;color:var(--color-text-secondary);line-height:1.55;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)}
+
+.winner-box{border:2px solid #9FE1CB;border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem;background:var(--color-background-primary)}
+.winner-lbl{font-size:11px;font-weight:500;background:#9FE1CB;color:#085041;padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:10px}
+.warn{border:0.5px solid var(--color-border-warning);background:var(--color-background-warning);border-radius:var(--border-radius-md);padding:10px 13px;font-size:12px;color:var(--color-text-warning);margin-top:1.25rem;line-height:1.6}
+.note{font-size:12px;color:var(--color-text-secondary);margin-bottom:1rem;line-height:1.5}
+</style>
+
+<div class="wrap">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;">Smart money allocations for $100, $150, and $200 across all discussed stocks</h2>
+
+<div class="tb">
+  <button class="on" onclick="show('scores',this)">Probability scores</button>
+  <button onclick="show('b100',this)">$100 budget</button>
+  <button onclick="show('b150',this)">$150 budget</button>
+  <button onclick="show('b200',this)">$200 budget</button>
+  <button onclick="show('verdict',this)">Final verdict</button>
+</div>
+
+<div id="scores" class="pnl on">
+  <p class="note">Every pick scored 1–10 across 4 factors. Score drives the allocation recommendations. Higher = better probability of return for your specific goals.</p>
+  <div class="score-grid">
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">SAIL</span><span class="sc-score score-a">9.1</span></div>
+      <div class="sc-name">SailPoint — AI cybersecurity</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-g" style="width:95%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-g" style="width:90%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:88%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-b" style="width:70%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-lt">Long-term</span><span class="tag tag-op">Options</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">SOUN</span><span class="sc-score score-a">8.7</span></div>
+      <div class="sc-name">SoundHound AI — voice AI</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-g" style="width:82%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-g" style="width:95%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:90%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-b" style="width:72%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-lt">Long-term</span><span class="tag tag-qt">Quick play</span><span class="tag tag-op">Options</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">NOK</span><span class="sc-score score-a">8.2</span></div>
+      <div class="sc-name">Nokia — 5G infrastructure</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-g" style="width:85%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-g" style="width:75%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:80%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-b" style="width:85%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-qt">Quick play</span><span class="tag tag-op">Options</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">QBTS</span><span class="sc-score score-b">7.8</span></div>
+      <div class="sc-name">D-Wave Quantum — real revenue</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-g" style="width:78%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-g" style="width:80%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:75%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-b" style="width:68%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-lt">Long-term</span><span class="tag tag-op">Options</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">ET</span><span class="sc-score score-b">7.6</span></div>
+      <div class="sc-name">Energy Transfer — income</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-g" style="width:88%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-g" style="width:65%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:72%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-b" style="width:90%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-lt">Long-term</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">RGTI</span><span class="sc-score score-b">7.2</span></div>
+      <div class="sc-name">Rigetti Computing — quantum</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-a" style="width:55%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-g" style="width:82%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:75%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-a" style="width:50%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-lt">Long-term</span><span class="tag tag-op">Options</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">F</span><span class="sc-score score-b">7.0</span></div>
+      <div class="sc-name">Ford — macro bounce</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-g" style="width:72%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-a" style="width:60%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-g" style="width:85%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-b" style="width:75%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-qt">Quick play</span><span class="tag tag-op">Options</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">SOUN calls</span><span class="sc-score score-a">9.2</span></div>
+      <div class="sc-name">SOUN May 16 $8 call specifically</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Catalyst timing</span><div class="bar-track"><div class="bar-fill fill-g" style="width:98%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Cost efficiency</span><div class="bar-track"><div class="bar-fill fill-g" style="width:92%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Squeeze potential</span><div class="bar-track"><div class="bar-fill fill-g" style="width:88%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk (defined)</span><div class="bar-track"><div class="bar-fill fill-b" style="width:95%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-op">Best option play</span><span class="tag tag-qt">Near-term</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">SAIL calls</span><span class="sc-score score-a">8.9</span></div>
+      <div class="sc-name">SAIL Jun 18 $12.5 call specifically</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Catalyst timing</span><div class="bar-track"><div class="bar-fill fill-g" style="width:90%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Cost efficiency</span><div class="bar-track"><div class="bar-fill fill-g" style="width:85%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Analyst conviction</span><div class="bar-track"><div class="bar-fill fill-g" style="width:95%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk (defined)</span><div class="bar-track"><div class="bar-fill fill-b" style="width:95%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-op">Strong option play</span><span class="tag tag-lt">2 months</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">BBAI</span><span class="sc-score score-c">5.8</span></div>
+      <div class="sc-name">BigBear.ai — defense AI</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-r" style="width:40%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-a" style="width:55%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-a" style="width:45%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-r" style="width:35%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-hi">High risk</span><span class="tag tag-qt">Speculative</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">JOBY</span><span class="sc-score score-c">5.5</span></div>
+      <div class="sc-name">Joby Aviation — eVTOL</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-r" style="width:38%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-a" style="width:60%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-a" style="width:55%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-r" style="width:30%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-hi">Binary event</span><span class="tag tag-op">Lottery</span></div>
+    </div>
+
+    <div class="score-card">
+      <div class="sc-top"><span class="sc-ticker">QUBT</span><span class="sc-score score-d">4.5</span></div>
+      <div class="sc-name">Quantum Computing Inc — speculative</div>
+      <div class="sc-bars">
+        <div class="bar-row"><span class="bar-lbl">Fundamentals</span><div class="bar-track"><div class="bar-fill fill-r" style="width:25%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Catalyst clarity</span><div class="bar-track"><div class="bar-fill fill-a" style="width:50%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Options setup</span><div class="bar-track"><div class="bar-fill fill-r" style="width:40%"></div></div></div>
+        <div class="bar-row"><span class="bar-lbl">Risk level</span><div class="bar-track"><div class="bar-fill fill-r" style="width:20%"></div></div></div>
+      </div>
+      <div class="sc-tags"><span class="tag tag-hi">Very high risk</span></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="b100" class="pnl">
+  <p class="note">$100 total — every dollar has to work hard. Focus on the highest probability options plays only. No shares, no lottery tickets.</p>
+
+  <div class="winner-box">
+    <span class="winner-lbl">Best single $100 play</span>
+    <div class="alloc-row" style="grid-template-columns:auto 1fr auto auto;display:grid;gap:10px;align-items:center;padding:8px 0">
+      <span class="ar-ticker">SOUN</span>
+      <span class="ar-play">May 16 $8 call — earnings catalyst May 12, 32% short float, momentum building. 1 contract.</span>
+      <span class="ar-cost">~$65–80</span>
+      <span class="ar-ret ret-hi">High prob</span>
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);padding-top:8px;border-top:0.5px solid var(--color-border-tertiary);margin-top:8px;line-height:1.55">
+      Spend $65–80. If SOUN hits $10 on an earnings beat: profit ~$130–150. If it runs to $12 (analyst target range): profit ~$330–350. Defined max loss = what you paid. Keep $20–35 in reserve.
+    </div>
+  </div>
+
+  <div class="alloc-card">
+    <div class="alloc-hdr"><span class="alloc-amt">$100</span><span class="alloc-tag at-bal">Split play</span></div>
+    <div class="alloc-rows">
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $8 call — 1 contract, earnings play</span>
+        <span class="ar-cost">~$65</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SAIL</span>
+        <span class="ar-play">Jun 18 $12.5 call — 1 contract (already saw this chain)</span>
+        <span class="ar-cost">~$30</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+    </div>
+    <div class="alloc-total">
+      <span class="at-lbl">Total deployed</span>
+      <span class="at-val">~$95 of $100</span>
+    </div>
+    <div class="alloc-thesis">Two highest-scored plays, both with defined max loss. SOUN is the near-term catalyst (earnings May 12), SAIL is the 2-month hold with 70% analyst upside. You're playing both your instincts with full risk control.</div>
+  </div>
+</div>
+
+<div id="b150" class="pnl">
+  <p class="note">$150 — enough to add a third position and still keep full risk control. Layer in a small speculative play alongside the two core picks.</p>
+
+  <div class="alloc-card">
+    <div class="alloc-hdr"><span class="alloc-amt">$150</span><span class="alloc-tag at-bal">Balanced</span></div>
+    <div class="alloc-rows">
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $8 call — 1 contract, earnings catalyst</span>
+        <span class="ar-cost">~$65</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SAIL</span>
+        <span class="ar-play">Jun 18 $12.5 call — 1 contract (your Robinhood chain)</span>
+        <span class="ar-cost">~$30</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">NOK</span>
+        <span class="ar-play">$11/$13 bull call spread — 1 contract, defined risk</span>
+        <span class="ar-cost">~$40</span>
+        <span class="ar-ret ret-mid">Medium prob</span>
+      </div>
+    </div>
+    <div class="alloc-total">
+      <span class="at-lbl">Total deployed</span>
+      <span class="at-val">~$135 of $150</span>
+    </div>
+    <div class="alloc-thesis">SOUN + SAIL carry the highest probability of return. The NOK spread is low cost, recently upgraded at BofA, and adds diversification without big risk. $15 kept as buffer. All three have fully defined max losses — no surprise blowups.</div>
+  </div>
+
+  <div class="alloc-card">
+    <div class="alloc-hdr"><span class="alloc-amt">$150</span><span class="alloc-tag at-aggr">More aggressive</span></div>
+    <div class="alloc-rows">
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $8 call — 1 contract</span>
+        <span class="ar-cost">~$65</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $9 call — 1 extra contract (squeeze upside)</span>
+        <span class="ar-cost">~$35</span>
+        <span class="ar-ret ret-mid">Med-high</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SAIL</span>
+        <span class="ar-play">Jun 18 $12.5 call — 1 contract</span>
+        <span class="ar-cost">~$30</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+    </div>
+    <div class="alloc-total">
+      <span class="at-lbl">Total deployed</span>
+      <span class="at-val">~$130 of $150</span>
+    </div>
+    <div class="alloc-thesis">Double down on SOUN with two strikes — $8 for probability, $9 for upside leverage if the short squeeze fires. The $9 only costs ~$35 and could pay 5–8x if SOUN rips to $12+. SAIL is the steadier anchor. $20 buffer kept.</div>
+  </div>
+</div>
+
+<div id="b200" class="pnl">
+  <p class="note">$200 — full diversified options portfolio across the highest-scored plays, with one small speculative slot.</p>
+
+  <div class="alloc-card">
+    <div class="alloc-hdr"><span class="alloc-amt">$200</span><span class="alloc-tag at-cons">Smart diversified</span></div>
+    <div class="alloc-rows">
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $8 call — 1 contract (core earnings play)</span>
+        <span class="ar-cost">~$65</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SAIL</span>
+        <span class="ar-play">Jun 18 $12.5 call — 1 contract (your Robinhood chain)</span>
+        <span class="ar-cost">~$30</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">NOK</span>
+        <span class="ar-play">$11/$13 bull call spread — 1 contract</span>
+        <span class="ar-cost">~$40</span>
+        <span class="ar-ret ret-mid">Medium prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">QBTS</span>
+        <span class="ar-play">$15/$20 bull call spread — quantum sector play</span>
+        <span class="ar-cost">~$40</span>
+        <span class="ar-ret ret-mid">Medium prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $9 call — squeeze lottery on top</span>
+        <span class="ar-cost">~$15</span>
+        <span class="ar-ret ret-lo">Speculative</span>
+      </div>
+    </div>
+    <div class="alloc-total">
+      <span class="at-lbl">Total deployed</span>
+      <span class="at-val">~$190 of $200</span>
+    </div>
+    <div class="alloc-thesis">60% in your two highest-conviction plays (SOUN + SAIL). 40% in diversified lower-risk spreads. The extra $15 SOUN $9 call is a squeeze kicker that costs almost nothing. Every single position has a defined max loss — the worst case is losing $190 total, which only happens if every single play expires worthless at the same time.</div>
+  </div>
+
+  <div class="alloc-card">
+    <div class="alloc-hdr"><span class="alloc-amt">$200</span><span class="alloc-tag at-aggr">High conviction SOUN/SAIL focused</span></div>
+    <div class="alloc-rows">
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $7.50 call — 1 contract (closer to ATM, higher prob)</span>
+        <span class="ar-cost">~$85</span>
+        <span class="ar-ret ret-hi">Highest prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SAIL</span>
+        <span class="ar-play">Jun 18 $12.5 call — 1 contract</span>
+        <span class="ar-cost">~$30</span>
+        <span class="ar-ret ret-hi">High prob</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">Jun 20 $10 call — longer-dated upside on SOUN thesis</span>
+        <span class="ar-cost">~$55</span>
+        <span class="ar-ret ret-mid">Medium-high</span>
+      </div>
+      <div class="alloc-row">
+        <span class="ar-ticker">BBAI</span>
+        <span class="ar-play">$5 call, 60 days — ultra cheap lottery</span>
+        <span class="ar-cost">~$20</span>
+        <span class="ar-ret ret-lo">Speculative</span>
+      </div>
+    </div>
+    <div class="alloc-total">
+      <span class="at-lbl">Total deployed</span>
+      <span class="at-val">~$190 of $200</span>
+    </div>
+    <div class="alloc-thesis">All in on your instincts — SOUN and SAIL dominate with 85% of capital. Two SOUN positions at different strikes and expirations staggers your exposure: near-term earnings pop + longer-dated thesis play. BBAI at $20 is pure lottery but costs almost nothing. Max loss still fully defined.</div>
+  </div>
+</div>
+
+<div id="verdict" class="pnl">
+  <p class="note">Cut through the noise. Here is the single most emotionless, probability-based answer to "where should my money go?"</p>
+
+  <div class="winner-box">
+    <span class="winner-lbl">Top 3 plays by pure probability of positive return</span>
+    <div class="alloc-rows" style="margin-top:10px">
+      <div class="alloc-row" style="grid-template-columns:30px auto 1fr auto;display:grid;gap:10px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="font-size:16px;font-weight:500;color:#0F6E56">#1</span>
+        <span class="ar-ticker">SOUN</span>
+        <span class="ar-play">May 16 $8 call — earnings May 12, 32% short float, momentum now, defined risk. Score 9.2</span>
+        <span class="ar-ret ret-hi">Best play</span>
+      </div>
+      <div class="alloc-row" style="grid-template-columns:30px auto 1fr auto;display:grid;gap:10px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="font-size:16px;font-weight:500;color:#0F6E56">#2</span>
+        <span class="ar-ticker">SAIL</span>
+        <span class="ar-play">Jun 18 $12.5 call — 20 analysts Buy, 70% upside, earnings June 17, already in Robinhood. Score 8.9</span>
+        <span class="ar-ret ret-hi">Strong play</span>
+      </div>
+      <div class="alloc-row" style="grid-template-columns:30px auto 1fr auto;display:grid;gap:10px;align-items:center;padding:10px 0">
+        <span style="font-size:16px;font-weight:500;color:#1D9E75">#3</span>
+        <span class="ar-ticker">NOK</span>
+        <span class="ar-play">$11/$13 spread — lowest cost of the 3, recently upgraded, defined risk both ways. Score 8.2</span>
+        <span class="ar-ret ret-mid">Solid play</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="alloc-card">
+    <div class="alloc-hdr"><span class="alloc-amt">Universal formula</span><span class="alloc-tag at-bal">Any budget</span></div>
+    <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.65">
+      <div style="margin-bottom:8px">Put <strong style="color:var(--color-text-primary)">50%</strong> in SOUN May 16 $8 call.</div>
+      <div style="margin-bottom:8px">Put <strong style="color:var(--color-text-primary)">30%</strong> in SAIL Jun 18 $12.5 call.</div>
+      <div style="margin-bottom:8px">Put <strong style="color:var(--color-text-primary)">15%</strong> in NOK $11/$13 spread.</div>
+      <div>Keep <strong style="color:var(--color-text-primary)">5%</strong> in reserve — do not deploy this.</div>
+    </div>
+  </div>
+
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-top:1rem">
+    <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.65">
+      <div style="font-weight:500;color:var(--color-text-primary);margin-bottom:6px">Why SOUN ranks #1 over SAIL right now</div>
+      SAIL is the better long-term fundamental story. But SOUN has a specific, near-term, datable catalyst (earnings May 12) with a 32% short float that can accelerate a move hard. When you have a known catalyst + squeeze mechanics + stock momentum all aligned, that is the highest probability setup in options trading. SAIL's catalyst (earnings June 17) is further away. Buy both — but SOUN gets the bigger slice right now.
+    </div>
+  </div>
+
+  <div class="warn">All option premiums are estimates. Verify actual Ask prices on Robinhood before placing. Max loss on every play above = the premium you paid, nothing more. Never risk money you cannot afford to lose entirely. This is not financial advice.</div>
+</div>
+
+</div>
+
+<script>
+function show(id,btn){
+  document.querySelectorAll('.pnl').forEach(function(p){p.classList.remove('on')});
+  document.querySelectorAll('.tb button').forEach(function(b){b.classList.remove('on')});
+  document.getElementById(id).classList.add('on');
+  btn.classList.add('on');
+}
+</script>

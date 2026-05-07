@@ -1,0 +1,73 @@
+==================================================================
+  DAILY TRADING BRIEF — Monday, May 04 2026
+  Started: 08:00:05  |  Log → logs/run_2026-05-04.log
+==================================================================
+
+[1/3]  Refreshing market data…
+  ✓  Done in 5.1s — 2008 new price row(s) added
+
+[2/3]  Scoring watchlist  (Buy Signal = Score × 0.4 + ML Conf × 0.6)…
+
+  [SKIP] SQ: only 0 rows — need 200+ for SMA-200
+  Ticker  Buy Signal     Score   ML Conf      Close    RSI
+  ───────────────────────────────────────────────────────────────
+  RBLX          59.4    20/100     85.7%     $45.13   26.9
+  RIOT          57.9    40/100     69.9%     $18.50   59.4
+  INTC          53.7    40/100     62.9%     $99.62   87.5
+  T             52.9    60/100     48.2%     $26.12   45.3
+  SOFI          50.1    40/100     56.9%     $16.43   41.8
+  MARA          49.9    20/100     69.9%     $11.46   59.4
+  SNAP          49.8    20/100     69.6%      $6.29   66.2
+  AMD           49.5    40/100     55.8%    $360.54   79.8
+  COIN          48.3    20/100     67.2%    $191.25   50.8
+  PLTR          48.0    20/100     66.6%    $144.07   50.6
+  KEY           45.2    40/100     48.6%     $21.87   58.1
+  WFC           44.6    20/100     61.0%     $80.81   48.0
+  DKNG          44.4    20/100     60.7%     $23.00   48.3
+  BAC           44.1    20/100     60.2%     $53.24   59.8
+  PYPL          43.9    20/100     59.8%     $50.44   59.2
+  GM            43.4    40/100     45.7%     $75.77   44.7
+  HOOD          43.3    20/100     58.8%     $73.66   43.5
+  UBER          41.3    20/100     55.5%     $75.12   52.3
+  F             40.1    20/100     53.5%     $11.88   40.4
+  ───────────────────────────────────────────────────────────────
+
+[3/3]  Running momentum screener across 101 small/mid-cap tickers…
+  Downloading 226 tickers (period=3mo) …
+  Usable data for 59 / 226 tickers.
+
+  → 2 candidate(s) found:
+
+  #    Ticker     Price    RSI    5d Chg   Avg Vol (20d)
+  ────────────────────────────────────────────────────
+  1    AGIO      $28.16   46.0   +11.22%       1,355,335
+  2    IQ         $1.22   43.4    +4.27%      10,270,035
+
+==================================================================
+  ★  SUMMARY
+──────────────────────────────────────────────────────────────────
+  Watchlist — 19 stock(s) with Buy Signal ≥ 40:
+    →  RBLX   Buy Signal 59.4  |  Score 20/100  ML 86%
+    →  RIOT   Buy Signal 57.9  |  Score 40/100  ML 70%
+    →  INTC   Buy Signal 53.7  |  Score 40/100  ML 63%
+    →  T      Buy Signal 52.9  |  Score 60/100  ML 48%
+    →  SOFI   Buy Signal 50.1  |  Score 40/100  ML 57%
+    →  MARA   Buy Signal 49.9  |  Score 20/100  ML 70%
+    →  SNAP   Buy Signal 49.8  |  Score 20/100  ML 70%
+    →  AMD    Buy Signal 49.5  |  Score 40/100  ML 56%
+    →  COIN   Buy Signal 48.3  |  Score 20/100  ML 67%
+    →  PLTR   Buy Signal 48.0  |  Score 20/100  ML 67%
+    →  KEY    Buy Signal 45.2  |  Score 40/100  ML 49%
+    →  WFC    Buy Signal 44.6  |  Score 20/100  ML 61%
+    →  DKNG   Buy Signal 44.4  |  Score 20/100  ML 61%
+    →  BAC    Buy Signal 44.1  |  Score 20/100  ML 60%
+    →  PYPL   Buy Signal 43.9  |  Score 20/100  ML 60%
+    →  GM     Buy Signal 43.4  |  Score 40/100  ML 46%
+    →  HOOD   Buy Signal 43.3  |  Score 20/100  ML 59%
+    →  UBER   Buy Signal 41.3  |  Score 20/100  ML 56%
+    →  F      Buy Signal 40.1  |  Score 20/100  ML 54%
+
+  Screener — 2 small/mid-cap candidate(s):  AGIO  IQ
+
+  Completed in 9.0s
+==================================================================
