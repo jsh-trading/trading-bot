@@ -364,6 +364,11 @@ def _init_db():
             conn.commit()
         except Exception:
             pass  # column already exists — safe to ignore
+        try:
+            conn.execute("ALTER TABLE options_positions ADD COLUMN live_option_price REAL")
+            conn.commit()
+        except Exception:
+            pass
 
         # restore from JSON backup if table is empty (e.g. after Streamlit Cloud reboot)
         row_count = conn.execute("SELECT COUNT(*) FROM options_positions").fetchone()[0]
@@ -451,6 +456,24 @@ def _delete_options_position(pos_id: int):
     with get_db_connection() as conn:
         conn.execute("DELETE FROM options_positions WHERE id=?", (pos_id,))
     _backup_positions()
+
+
+def _update_live_option_price(pos_id: int, price) -> None:
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE options_positions SET live_option_price=? WHERE id=?",
+            (price, pos_id),
+        )
+    _backup_positions()
+
+
+def _on_live_opt_change(pos_id: int, key: str) -> None:
+    val = st.session_state.get(key)
+    try:
+        price = float(val) if val is not None and float(val) > 0 else None
+    except Exception:
+        price = None
+    _update_live_option_price(pos_id, price)
 
 
 _init_db()
@@ -1180,6 +1203,23 @@ with tab2:
                     else ""
                 )
 
+                # P&L from live option price
+                _lop = row.get("live_option_price")
+                try:
+                    _lop_valid = _lop is not None and str(_lop) not in ("nan", "None", "") and float(_lop) > 0
+                except Exception:
+                    _lop_valid = False
+                if _lop_valid:
+                    _lop_f   = float(_lop)
+                    _pnl_d   = (_lop_f - float(row["entry_price"])) * int(row["qty"]) * 100
+                    _pnl_p   = ((_lop_f - float(row["entry_price"])) / float(row["entry_price"])) * 100
+                    _pc      = "#00c853" if _pnl_d >= 0 else "#ff1744"
+                    _pnl_d_str = f'<span style="color:{_pc};font-weight:700;">${_pnl_d:+,.2f}</span>'
+                    _pnl_p_str = f'<span style="color:{_pc};font-weight:700;">{_pnl_p:+.1f}%</span>'
+                else:
+                    _pnl_d_str = "—"
+                    _pnl_p_str = "—"
+
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
                 st.markdown(f"""
 <div class="options-card">
@@ -1196,12 +1236,25 @@ with tab2:
     {_field("Entry",     f"${row['entry_price']:.2f}")}
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
-    {_field("P&L $",     "—")}
-    {_field("P&L %",     "—")}
+    {_field("P&L $",     _pnl_d_str)}
+    {_field("P&L %",     _pnl_p_str)}
   </div>
   <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}
 </div>
 """, unsafe_allow_html=True)
+
+                _lop_key = f"live_opt_{int(row['id'])}"
+                _lop_default = float(_lop) if _lop_valid else 0.0
+                st.number_input(
+                    "Option $ now",
+                    min_value=0.0,
+                    value=_lop_default,
+                    step=0.01,
+                    format="%.2f",
+                    key=_lop_key,
+                    on_change=_on_live_opt_change,
+                    args=(int(row["id"]), _lop_key),
+                )
 
                 if st.button(f"🗑 Remove #{int(row['id'])}", key=f"del_{row['id']}"):
                     _delete_options_position(int(row["id"]))
