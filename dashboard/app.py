@@ -65,36 +65,61 @@ st.set_page_config(
 
 st_autorefresh(interval=60000, key="autorefresh")
 
-# ── Supabase client ────────────────────────────────────────────────────────────
-try:
-    from supabase import create_client as _sb_create
-except ImportError:
-    _sb_create = None
+# ── Supabase REST helpers (no client library — pure requests) ─────────────────
+import requests as _requests
 
 _has_supabase = (
-    _sb_create is not None
-    and hasattr(st, "secrets")
+    hasattr(st, "secrets")
     and "SUPABASE_URL" in st.secrets
     and "SUPABASE_KEY" in st.secrets
 )
 
 if _has_supabase:
-    _sb = _sb_create(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    _SB_URL = st.secrets["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
+    _SB_KEY = st.secrets["SUPABASE_KEY"]
+    _SB_HEADERS = {
+        "apikey":        _SB_KEY,
+        "Authorization": "Bearer " + _SB_KEY,
+        "Content-Type":  "application/json",
+        "Prefer":        "return=representation",
+    }
 else:
-    _sb = None
+    _SB_URL = _SB_KEY = _SB_HEADERS = None
     st.sidebar.warning(
         "⚠️ Using local storage — positions will reset on reboot. "
         "Add Supabase credentials to fix."
     )
 
 
+def _sb_get(table: str, params: dict | None = None) -> list:
+    r = _requests.get(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+
+def _sb_post(table: str, payload: dict) -> dict:
+    r = _requests.post(_SB_URL + table, headers=_SB_HEADERS, json=payload, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    return data[0] if isinstance(data, list) else data
+
+
+def _sb_patch(table: str, params: dict, payload: dict) -> None:
+    r = _requests.patch(_SB_URL + table, headers=_SB_HEADERS, params=params, json=payload, timeout=10)
+    r.raise_for_status()
+
+
+def _sb_delete(table: str, params: dict) -> None:
+    r = _requests.delete(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+    r.raise_for_status()
+
+
 def _load_setting(key: str, default: float) -> float:
-    """Read a key from Supabase app_settings, fall back to local file."""
-    if _sb is not None:
+    if _has_supabase:
         try:
-            res = _sb.table("app_settings").select("value").eq("key", key).execute()
-            if res.data:
-                return float(res.data[0]["value"])
+            rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
+            if rows:
+                return float(rows[0]["value"])
         except Exception:
             pass
     path = _BALANCE_PATH if key == "balance" else _BP_PATH
@@ -454,23 +479,23 @@ def _load_trades() -> pd.DataFrame:
 
 
 def _save_options_position(data: dict):
-    if _sb is not None:
+    if _has_supabase:
         try:
-            _sb.table("options_positions").insert({
-                "ticker":           data["ticker"],
-                "type":             data["type"],
-                "expiry":           data["expiry"],
-                "earnings_date":    data.get("earnings_date"),
-                "strike":           data["strike"],
-                "qty":              data["qty"],
-                "entry_price":      data["entry_price"],
-                "stop_loss":        data.get("stop_loss"),
-                "target1":          data.get("target1"),
-                "target2":          data.get("target2"),
-                "target3":          data.get("target3"),
-                "status":           "Open",
-                "notes":            data.get("notes"),
-            }).execute()
+            _sb_post("options_positions", {
+                "ticker":        data["ticker"],
+                "type":          data["type"],
+                "expiry":        data["expiry"],
+                "earnings_date": data.get("earnings_date"),
+                "strike":        data["strike"],
+                "qty":           data["qty"],
+                "entry_price":   data["entry_price"],
+                "stop_loss":     data.get("stop_loss"),
+                "target1":       data.get("target1"),
+                "target2":       data.get("target2"),
+                "target3":       data.get("target3"),
+                "status":        "Open",
+                "notes":         data.get("notes"),
+            })
             return
         except Exception:
             pass
@@ -491,11 +516,10 @@ def _save_options_position(data: dict):
 
 
 def _load_options_positions() -> pd.DataFrame:
-    if _sb is not None:
+    if _has_supabase:
         try:
-            res = _sb.table("options_positions").select("*").order("created_at", desc=True).execute()
-            if res.data is not None:
-                return pd.DataFrame(res.data) if res.data else pd.DataFrame()
+            rows = _sb_get("options_positions", {"order": "created_at.desc"})
+            return pd.DataFrame(rows) if rows else pd.DataFrame()
         except Exception:
             pass
     with get_db_connection() as conn:
@@ -505,7 +529,7 @@ def _load_options_positions() -> pd.DataFrame:
 
 
 def _backup_positions():
-    if _sb is not None:
+    if _has_supabase:
         return  # Supabase is persistent — local JSON backup not needed
     try:
         df = _load_options_positions()
@@ -517,9 +541,9 @@ def _backup_positions():
 
 
 def _delete_options_position(pos_id: int):
-    if _sb is not None:
+    if _has_supabase:
         try:
-            _sb.table("options_positions").delete().eq("id", pos_id).execute()
+            _sb_delete("options_positions", {"id": f"eq.{pos_id}"})
             return
         except Exception:
             pass
@@ -529,9 +553,9 @@ def _delete_options_position(pos_id: int):
 
 
 def _update_live_option_price(pos_id: int, price) -> None:
-    if _sb is not None:
+    if _has_supabase:
         try:
-            _sb.table("options_positions").update({"live_option_price": price}).eq("id", pos_id).execute()
+            _sb_patch("options_positions", {"id": f"eq.{pos_id}"}, {"live_option_price": price})
             return
         except Exception:
             pass
@@ -819,9 +843,16 @@ def _score_bar_html(val: int, color: str) -> str:
 # ── persistence helpers ───────────────────────────────────────────────────────
 
 def _save_setting(key: str, value: float) -> None:
-    if _sb is not None:
+    if _has_supabase:
         try:
-            _sb.table("app_settings").upsert({"key": key, "value": str(value)}).execute()
+            # upsert via POST with Prefer: resolution=merge-duplicates
+            hdrs = {**_SB_HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"}
+            _requests.post(
+                _SB_URL + "app_settings",
+                headers=hdrs,
+                json={"key": key, "value": str(value)},
+                timeout=10,
+            ).raise_for_status()
             return
         except Exception:
             pass
