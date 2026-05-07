@@ -20,10 +20,12 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 import time as _time
 
+import json
 import pandas as pd
 import yfinance as yf
 import streamlit as st
 import anthropic
+from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
 for _log in ("yfinance", "yfinance.base", "urllib3"):
@@ -48,6 +50,7 @@ CHALLENGE_START = 201.99
 CHALLENGE_GOAL  = 1_000.00
 _BALANCE_PATH   = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'balance.txt'))
 _BP_PATH        = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'buying_power.txt'))
+_POSITIONS_BACKUP_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'positions_backup.json'))
 try:
     CHALLENGE_CURRENT = float(open(_BALANCE_PATH).read().strip())
 except Exception:
@@ -66,6 +69,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+st_autorefresh(interval=60000, key="autorefresh")
 
 # ── light theme CSS ───────────────────────────────────────────────────────────
 
@@ -360,6 +365,29 @@ def _init_db():
         except Exception:
             pass  # column already exists — safe to ignore
 
+        # restore from JSON backup if table is empty (e.g. after Streamlit Cloud reboot)
+        row_count = conn.execute("SELECT COUNT(*) FROM options_positions").fetchone()[0]
+        if row_count == 0 and os.path.exists(_POSITIONS_BACKUP_PATH):
+            try:
+                with open(_POSITIONS_BACKUP_PATH) as f:
+                    rows = json.load(f)
+                for r in rows:
+                    conn.execute("""
+                        INSERT INTO options_positions
+                          (ticker, type, expiry, earnings_date, strike, qty, entry_price,
+                           stop_loss, target1, target2, target3, status, notes, created_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (
+                        r.get("ticker"), r.get("type"), r.get("expiry"),
+                        r.get("earnings_date"), r.get("strike"), r.get("qty"),
+                        r.get("entry_price"), r.get("stop_loss"), r.get("target1"),
+                        r.get("target2"), r.get("target3"),
+                        r.get("status", "Open"), r.get("notes"), r.get("created_at"),
+                    ))
+                conn.commit()
+            except Exception:
+                pass
+
 
 def _save_trade(ticker, trade_date, entry, exit_price, notes):
     with get_db_connection() as conn:
@@ -399,6 +427,7 @@ def _save_options_position(data: dict):
             data.get("target2"), data.get("target3"), "Open",
             data.get("notes"),
         ))
+    _backup_positions()
 
 
 def _load_options_positions() -> pd.DataFrame:
@@ -408,9 +437,20 @@ def _load_options_positions() -> pd.DataFrame:
     return df
 
 
+def _backup_positions():
+    try:
+        df = _load_options_positions()
+        rows = df.to_dict(orient="records") if not df.empty else []
+        with open(_POSITIONS_BACKUP_PATH, "w") as f:
+            json.dump(rows, f, default=str)
+    except Exception:
+        pass
+
+
 def _delete_options_position(pos_id: int):
     with get_db_connection() as conn:
         conn.execute("DELETE FROM options_positions WHERE id=?", (pos_id,))
+    _backup_positions()
 
 
 _init_db()
