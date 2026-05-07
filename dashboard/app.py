@@ -894,6 +894,26 @@ if st.session_state.get("ch_editing", False):
         st.session_state["ch_editing"] = False
         st.rerun()
 
+# ── session reminder banner ──────────────────────────────────────────────────
+_h, _m = now_et.hour, now_et.minute
+_now_mins = _h * 60 + _m
+if 9 * 60 <= _now_mins < 9 * 60 + 45:
+    st.markdown(
+        '<div style="background:#e8f5e9;border:1.5px solid #00c853;border-radius:10px;'
+        'padding:10px 16px;margin-bottom:10px;font-size:0.9rem;font-weight:600;color:#1b5e20;">'
+        '🟢 MORNING SESSION — Check positions, run scanner, set alerts before 9:30 open.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+elif 15 * 60 + 30 <= _now_mins < 16 * 60:
+    st.markdown(
+        '<div style="background:#fffde7;border:1.5px solid #f9a825;border-radius:10px;'
+        'padding:10px 16px;margin-bottom:10px;font-size:0.9rem;font-weight:600;color:#e65100;">'
+        '🟡 EOD SESSION — Update SAIL price, update balance, review any open positions before close.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
 # ── tabs (Options Desk is first / default) ────────────────────────────────────
 tab2, tab1, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "⚡  Options Desk",
