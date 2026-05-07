@@ -83,22 +83,24 @@ if _has_supabase:
         "Content-Type":  "application/json",
         "Prefer":        "return=representation",
     }
+    st.sidebar.success("✅ Supabase connected")
 else:
     _SB_URL = _SB_KEY = _SB_HEADERS = None
-    st.sidebar.warning(
-        "⚠️ Using local storage — positions will reset on reboot. "
-        "Add Supabase credentials to fix."
-    )
+    st.sidebar.warning("⚠️ Using local SQLite — positions will reset on reboot.")
 
 
 def _sb_get(table: str, params: dict | None = None) -> list:
     r = _requests.get(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+    if not r.ok:
+        print(f"[SB ERROR] GET {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
     return r.json()
 
 
 def _sb_post(table: str, payload: dict) -> dict:
     r = _requests.post(_SB_URL + table, headers=_SB_HEADERS, json=payload, timeout=10)
+    if not r.ok:
+        print(f"[SB ERROR] POST {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
     data = r.json()
     return data[0] if isinstance(data, list) else data
@@ -106,11 +108,15 @@ def _sb_post(table: str, payload: dict) -> dict:
 
 def _sb_patch(table: str, params: dict, payload: dict) -> None:
     r = _requests.patch(_SB_URL + table, headers=_SB_HEADERS, params=params, json=payload, timeout=10)
+    if not r.ok:
+        print(f"[SB ERROR] PATCH {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
 
 
 def _sb_delete(table: str, params: dict) -> None:
     r = _requests.delete(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+    if not r.ok:
+        print(f"[SB ERROR] DELETE {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
 
 
@@ -495,7 +501,7 @@ def _load_trades() -> pd.DataFrame:
 def _save_options_position(data: dict):
     if _has_supabase:
         try:
-            _sb_post("options_positions", {
+            result = _sb_post("options_positions", {
                 "ticker":        data["ticker"],
                 "type":          data["type"],
                 "expiry":        data["expiry"],
@@ -510,9 +516,13 @@ def _save_options_position(data: dict):
                 "status":        "Open",
                 "notes":         data.get("notes"),
             })
-            return
-        except Exception:
-            pass
+            if result and result.get("id"):
+                return  # confirmed saved with a real id
+            print(f"[SB WARNING] Save returned no id — result: {result}", flush=True)
+        except Exception as _e:
+            print(f"[SB ERROR] _save_options_position failed: {_e}", flush=True)
+    # Fallback: SQLite
+    print("[DB] Falling back to SQLite for position save", flush=True)
     with get_db_connection() as conn:
         conn.execute("""
             INSERT INTO options_positions
@@ -533,9 +543,10 @@ def _load_options_positions() -> pd.DataFrame:
     if _has_supabase:
         try:
             rows = _sb_get("options_positions", {"order": "created_at.desc"})
-            return pd.DataFrame(rows) if rows else pd.DataFrame()
-        except Exception:
-            pass
+            if rows is not None:  # empty list is valid — Supabase reachable, zero rows
+                return pd.DataFrame(rows) if rows else pd.DataFrame()
+        except Exception as _e:
+            print(f"[SB ERROR] _load_options_positions failed: {_e} — falling back to SQLite", flush=True)
     with get_db_connection() as conn:
         df = pd.read_sql_query(
             "SELECT * FROM options_positions ORDER BY created_at DESC", conn)
