@@ -273,6 +273,17 @@ def _live_price(ticker: str) -> float | None:
     return None
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _prev_close(ticker: str) -> float | None:
+    try:
+        hist = yf.Ticker(ticker).history(period="5d")
+        if len(hist) >= 2:
+            return round(float(hist["Close"].iloc[-2]), 2)
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _fetch_market_data() -> dict:
     """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
@@ -1225,27 +1236,46 @@ with tab2:
             _scan_options_candidates.clear()
             st.rerun()
 
+        _hide_movers = st.toggle(
+            "🚫 Hide 5%+ movers (already repriced)",
+            value=True,
+            key="hide_movers_toggle",
+        )
+
         st.markdown("<br>", unsafe_allow_html=True)
 
         with st.spinner("Scanning watchlist + screener universe…"):
             candidates = _scan_options_candidates()
 
-        # Pre-filter: hide any play with earnings within 7 days
+        # Filter 1: hide any play with earnings within 7 days
         _today = date.today()
-        _visible = []
+        _after_earn = []
         _earn_hidden = 0
         for c in candidates:
             _ed = _fetch_earnings_date(c["ticker"])
             if _ed is not None and 0 <= (_ed - _today).days <= 7:
                 _earn_hidden += 1
             else:
-                _visible.append((c, _ed))
+                _after_earn.append((c, _ed))
+
+        # Filter 2: hide plays where stock already moved ≥5% from prev close
+        _visible = []
+        _move_hidden = 0
+        for c, _ed in _after_earn:
+            if _hide_movers:
+                _live  = _live_price(c["ticker"])
+                _pc    = _prev_close(c["ticker"])
+                if _live is not None and _pc is not None and _pc != 0:
+                    if abs((_live - _pc) / _pc) >= 0.05:
+                        _move_hidden += 1
+                        continue
+            _visible.append((c, _ed))
 
         if not _visible:
             _no_msg = (
                 'No setups found today. Check back after market open or lower your signal threshold.'
                 if not candidates else
-                f'All candidates hidden — earnings within 7 days for every play found. '
+                f'All candidates hidden — earnings within 7 days or stock already moved 5%+. '
                 'Use the <b>Evaluate a Play</b> tab to check them individually.'
             )
             st.markdown(f'<div class="card"><span style="color:#aaa;">{_no_msg}</span></div>', unsafe_allow_html=True)
@@ -1290,6 +1320,11 @@ with tab2:
             st.caption(
                 f"⚠️ {_earn_hidden} play{'s' if _earn_hidden != 1 else ''} hidden — "
                 "earnings within 7 days. Use **Evaluate a Play** tab to override."
+            )
+        if _move_hidden > 0:
+            st.caption(
+                f"🚫 {_move_hidden} play{'s' if _move_hidden != 1 else ''} hidden — "
+                "stock already moved 5%+ at open."
             )
 
         # ── Glossary ──────────────────────────────────────────────────────
