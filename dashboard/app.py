@@ -1173,9 +1173,11 @@ with tab2:
                     f'<div style="margin-top:6px;font-size:0.78rem;color:#aaa;">Earnings: {row["earnings_date"]}</div>'
                     if row["earnings_date"] else ""
                 )
+                _notes_val = row.get("notes")
                 notes_row = (
-                    f'<div style="margin-top:6px;font-size:0.82rem;color:#424242;">📝 {row["notes"]}</div>'
-                    if row.get("notes") else ""
+                    f'<div style="margin-top:6px;font-size:0.82rem;color:#424242;">📝 {_notes_val}</div>'
+                    if _notes_val and str(_notes_val).strip() and str(_notes_val).strip().lower() != "nan"
+                    else ""
                 )
 
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
