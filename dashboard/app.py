@@ -51,14 +51,7 @@ CHALLENGE_GOAL  = 1_000.00
 _BALANCE_PATH   = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'balance.txt'))
 _BP_PATH        = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'buying_power.txt'))
 _POSITIONS_BACKUP_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'positions_backup.json'))
-try:
-    CHALLENGE_CURRENT = float(open(_BALANCE_PATH).read().strip())
-except Exception:
-    CHALLENGE_CURRENT = 325.75
-try:
-    BUYING_POWER = float(open(_BP_PATH).read().strip())
-except Exception:
-    BUYING_POWER = CHALLENGE_CURRENT
+# CHALLENGE_CURRENT and BUYING_POWER are loaded after Supabase initializes (below page config)
 
 
 # ── page config ───────────────────────────────────────────────────────────────
@@ -72,17 +65,47 @@ st.set_page_config(
 
 st_autorefresh(interval=60000, key="autorefresh")
 
-# ── persistence check ─────────────────────────────────────────────────────────
+# ── Supabase client ────────────────────────────────────────────────────────────
+try:
+    from supabase import create_client as _sb_create
+except ImportError:
+    _sb_create = None
+
 _has_supabase = (
-    hasattr(st, "secrets")
+    _sb_create is not None
+    and hasattr(st, "secrets")
     and "SUPABASE_URL" in st.secrets
     and "SUPABASE_KEY" in st.secrets
 )
-if not _has_supabase:
+
+if _has_supabase:
+    _sb = _sb_create(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+else:
+    _sb = None
     st.sidebar.warning(
         "⚠️ Using local storage — positions will reset on reboot. "
         "Add Supabase credentials to fix."
     )
+
+
+def _load_setting(key: str, default: float) -> float:
+    """Read a key from Supabase app_settings, fall back to local file."""
+    if _sb is not None:
+        try:
+            res = _sb.table("app_settings").select("value").eq("key", key).execute()
+            if res.data:
+                return float(res.data[0]["value"])
+        except Exception:
+            pass
+    path = _BALANCE_PATH if key == "balance" else _BP_PATH
+    try:
+        return float(open(path).read().strip())
+    except Exception:
+        return default
+
+
+CHALLENGE_CURRENT = _load_setting("balance", 325.75)
+BUYING_POWER      = _load_setting("buying_power", CHALLENGE_CURRENT)
 
 # ── light theme CSS ───────────────────────────────────────────────────────────
 
@@ -431,6 +454,26 @@ def _load_trades() -> pd.DataFrame:
 
 
 def _save_options_position(data: dict):
+    if _sb is not None:
+        try:
+            _sb.table("options_positions").insert({
+                "ticker":           data["ticker"],
+                "type":             data["type"],
+                "expiry":           data["expiry"],
+                "earnings_date":    data.get("earnings_date"),
+                "strike":           data["strike"],
+                "qty":              data["qty"],
+                "entry_price":      data["entry_price"],
+                "stop_loss":        data.get("stop_loss"),
+                "target1":          data.get("target1"),
+                "target2":          data.get("target2"),
+                "target3":          data.get("target3"),
+                "status":           "Open",
+                "notes":            data.get("notes"),
+            }).execute()
+            return
+        except Exception:
+            pass
     with get_db_connection() as conn:
         conn.execute("""
             INSERT INTO options_positions
@@ -448,6 +491,13 @@ def _save_options_position(data: dict):
 
 
 def _load_options_positions() -> pd.DataFrame:
+    if _sb is not None:
+        try:
+            res = _sb.table("options_positions").select("*").order("created_at", desc=True).execute()
+            if res.data is not None:
+                return pd.DataFrame(res.data) if res.data else pd.DataFrame()
+        except Exception:
+            pass
     with get_db_connection() as conn:
         df = pd.read_sql_query(
             "SELECT * FROM options_positions ORDER BY created_at DESC", conn)
@@ -455,6 +505,8 @@ def _load_options_positions() -> pd.DataFrame:
 
 
 def _backup_positions():
+    if _sb is not None:
+        return  # Supabase is persistent — local JSON backup not needed
     try:
         df = _load_options_positions()
         rows = df.to_dict(orient="records") if not df.empty else []
@@ -465,12 +517,24 @@ def _backup_positions():
 
 
 def _delete_options_position(pos_id: int):
+    if _sb is not None:
+        try:
+            _sb.table("options_positions").delete().eq("id", pos_id).execute()
+            return
+        except Exception:
+            pass
     with get_db_connection() as conn:
         conn.execute("DELETE FROM options_positions WHERE id=?", (pos_id,))
     _backup_positions()
 
 
 def _update_live_option_price(pos_id: int, price) -> None:
+    if _sb is not None:
+        try:
+            _sb.table("options_positions").update({"live_option_price": price}).eq("id", pos_id).execute()
+            return
+        except Exception:
+            pass
     with get_db_connection() as conn:
         conn.execute(
             "UPDATE options_positions SET live_option_price=? WHERE id=?",
@@ -754,14 +818,27 @@ def _score_bar_html(val: int, color: str) -> str:
 
 # ── persistence helpers ───────────────────────────────────────────────────────
 
+def _save_setting(key: str, value: float) -> None:
+    if _sb is not None:
+        try:
+            _sb.table("app_settings").upsert({"key": key, "value": str(value)}).execute()
+            return
+        except Exception:
+            pass
+    path = _BALANCE_PATH if key == "balance" else _BP_PATH
+    try:
+        with open(path, "w") as f:
+            f.write(f"{value:.2f}")
+    except Exception:
+        pass
+
+
 def _save_balance(balance: float) -> None:
-    with open(_BALANCE_PATH, "w") as f:
-        f.write(f"{balance:.2f}")
+    _save_setting("balance", balance)
 
 
 def _save_buying_power(bp: float) -> None:
-    with open(_BP_PATH, "w") as f:
-        f.write(f"{bp:.2f}")
+    _save_setting("buying_power", bp)
 
 
 def _save_watchlist(tickers: list) -> None:
