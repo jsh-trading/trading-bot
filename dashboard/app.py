@@ -72,6 +72,18 @@ st.set_page_config(
 
 st_autorefresh(interval=60000, key="autorefresh")
 
+# ── persistence check ─────────────────────────────────────────────────────────
+_has_supabase = (
+    hasattr(st, "secrets")
+    and "SUPABASE_URL" in st.secrets
+    and "SUPABASE_KEY" in st.secrets
+)
+if not _has_supabase:
+    st.sidebar.warning(
+        "⚠️ Using local storage — positions will reset on reboot. "
+        "Add Supabase credentials to fix."
+    )
+
 # ── light theme CSS ───────────────────────────────────────────────────────────
 
 st.markdown("""
