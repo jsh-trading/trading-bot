@@ -1401,7 +1401,7 @@ with tab2:
             st.markdown('<div class="card"><span style="color:#aaa;">No open positions. Add one below.</span></div>', unsafe_allow_html=True)
         else:
             today = date.today()
-            for _pos_num, (_, row) in enumerate(positions.sort_values("id").iterrows(), start=1):
+            for _pos_num, (_, row) in enumerate(positions.assign(id=positions["id"].astype(int)).sort_values("id").iterrows(), start=1):
                 live = _live_price(row["ticker"])
                 live_str = f"${live:.2f}" if live is not None else "—"
 
