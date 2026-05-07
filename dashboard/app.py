@@ -1036,6 +1036,8 @@ _ch_gain_color  = "#00c853" if _ch_gain >= 0 else "#ff1744"
 _ch_gain_sign   = "+" if _ch_gain >= 0 else ""
 _ch_prog_w      = f"{_ch_pct_overall * 100:.1f}"
 _max_trade      = round(BUYING_POWER * 0.50)
+_m1_pct         = (400 - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START) * 100
+_m2_pct         = (700 - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START) * 100
 
 _tracker_pos_df = _load_options_positions()
 _open_pos_df    = _tracker_pos_df[_tracker_pos_df["status"] == "Open"] if not _tracker_pos_df.empty else pd.DataFrame()
@@ -1120,6 +1122,28 @@ with _ch_tracker_col:
         f'</div>'
 
         '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;'
+        f'padding:14px 18px 28px 18px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
+        f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">'
+        f'<span style="font-size:0.68rem;color:#aaa;">${CHALLENGE_START:,.2f} start</span>'
+        f'<span style="font-size:0.82rem;font-weight:700;color:#00c853;">{_ch_pct_overall*100:.1f}% to goal</span>'
+        f'<span style="font-size:0.68rem;color:#aaa;">${CHALLENGE_GOAL:,.0f} goal</span>'
+        f'</div>'
+        f'<div style="position:relative;">'
+        f'<div style="background:#f2f2f2;border-radius:100px;height:10px;overflow:hidden;">'
+        f'<div style="background:#00c853;border-radius:100px;height:10px;width:{_ch_prog_w}%;"></div>'
+        f'</div>'
+        f'<div style="position:absolute;top:0;left:{_m1_pct:.1f}%;width:2px;height:10px;background:#1565c0;"></div>'
+        f'<div style="position:absolute;top:0;left:{_m2_pct:.1f}%;width:2px;height:10px;background:#ff9800;"></div>'
+        f'<div style="position:absolute;top:14px;left:{_m1_pct:.1f}%;transform:translateX(-50%);'
+        f'font-size:0.6rem;color:#1565c0;font-weight:700;white-space:nowrap;">$400 · First Double</div>'
+        f'<div style="position:absolute;top:14px;left:{_m2_pct:.1f}%;transform:translateX(-50%);'
+        f'font-size:0.6rem;color:#ff9800;font-weight:700;white-space:nowrap;">$700 · Next Milestone</div>'
+        f'</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 with _ch_btn_col:
