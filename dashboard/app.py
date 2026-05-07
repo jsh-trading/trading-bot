@@ -1124,32 +1124,34 @@ with _ch_tracker_col:
         '</div>',
         unsafe_allow_html=True,
     )
-    st.markdown(
-        f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;'
-        f'padding:14px 18px 28px 18px;box-shadow:0 1px 8px rgba(0,0,0,0.06);">'
-        f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">'
-        f'<span style="font-size:0.68rem;color:#aaa;">${CHALLENGE_START:,.2f} start</span>'
-        f'<span style="font-size:0.82rem;font-weight:700;color:#00c853;">{_ch_pct_overall*100:.1f}% to goal</span>'
-        f'<span style="font-size:0.68rem;color:#aaa;">${CHALLENGE_GOAL:,.0f} goal</span>'
-        f'</div>'
-        f'<div style="position:relative;">'
-        f'<div style="background:#f2f2f2;border-radius:100px;height:10px;overflow:hidden;">'
-        f'<div style="background:#00c853;border-radius:100px;height:10px;width:{_ch_prog_w}%;"></div>'
-        f'</div>'
-        f'<div style="position:absolute;top:0;left:{_m1_pct:.1f}%;width:2px;height:10px;background:#1565c0;"></div>'
-        f'<div style="position:absolute;top:0;left:{_m2_pct:.1f}%;width:2px;height:10px;background:#ff9800;"></div>'
-        f'<div style="position:absolute;top:14px;left:{_m1_pct:.1f}%;transform:translateX(-50%);'
-        f'font-size:0.6rem;color:#1565c0;font-weight:700;white-space:nowrap;">$400 · First Double</div>'
-        f'<div style="position:absolute;top:14px;left:{_m2_pct:.1f}%;transform:translateX(-50%);'
-        f'font-size:0.6rem;color:#ff9800;font-weight:700;white-space:nowrap;">$700 · Next Milestone</div>'
-        f'</div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
 with _ch_btn_col:
     st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
     if st.button("✏️", key="ch_edit_btn", help="Update balance / buying power", use_container_width=True):
         st.session_state["ch_editing"] = not st.session_state.get("ch_editing", False)
+
+# Full-width goal progress bar — outside column context
+st.markdown(
+    f'<div style="background:#fff;border:1px solid #f0f0f0;border-radius:12px;'
+    f'padding:14px 18px 28px 18px;box-shadow:0 1px 8px rgba(0,0,0,0.06);margin-bottom:6px;">'
+    f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">'
+    f'<span style="font-size:0.68rem;color:#aaa;">${CHALLENGE_START:,.2f} start</span>'
+    f'<span style="font-size:0.82rem;font-weight:700;color:#00c853;">{_ch_pct_overall*100:.1f}% to goal</span>'
+    f'<span style="font-size:0.68rem;color:#aaa;">${CHALLENGE_GOAL:,.0f} goal</span>'
+    f'</div>'
+    f'<div style="position:relative;">'
+    f'<div style="background:#f2f2f2;border-radius:100px;height:10px;overflow:hidden;">'
+    f'<div style="background:#00c853;border-radius:100px;height:10px;width:{_ch_prog_w}%;"></div>'
+    f'</div>'
+    f'<div style="position:absolute;top:0;left:{_m1_pct:.1f}%;width:2px;height:10px;background:#1565c0;"></div>'
+    f'<div style="position:absolute;top:0;left:{_m2_pct:.1f}%;width:2px;height:10px;background:#ff9800;"></div>'
+    f'<div style="position:absolute;top:14px;left:{_m1_pct:.1f}%;transform:translateX(-50%);'
+    f'font-size:0.6rem;color:#1565c0;font-weight:700;white-space:nowrap;">$400 · First Double</div>'
+    f'<div style="position:absolute;top:14px;left:{_m2_pct:.1f}%;transform:translateX(-50%);'
+    f'font-size:0.6rem;color:#ff9800;font-weight:700;white-space:nowrap;">$700 · Next Milestone</div>'
+    f'</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
 
 if st.session_state.get("ch_editing", False):
     _bv1, _bv2, _bv3, _bv4 = st.columns([3, 3, 1, 4])
