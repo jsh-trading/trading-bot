@@ -902,10 +902,15 @@ with tab2:
             open_pos = positions[positions["status"] == "Open"]
             total_invested = float((open_pos["entry_price"] * open_pos["qty"] * 100).sum())
             today = date.today()
+            def _earn_days(val):
+                try:
+                    return (datetime.strptime(str(val), "%Y-%m-%d").date() - today).days
+                except Exception:
+                    return None
             n_warn = sum(
                 1 for _, r in open_pos.iterrows()
-                if r["earnings_date"] and
-                0 <= (datetime.strptime(str(r["earnings_date"]), "%Y-%m-%d").date() - today).days <= 7
+                if r["earnings_date"] and (d := _earn_days(r["earnings_date"])) is not None
+                and 0 <= d <= 7
             )
             mc1, mc2, mc3 = st.columns(3)
             with mc1:
