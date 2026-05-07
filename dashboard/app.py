@@ -349,6 +349,20 @@ def _prev_close(ticker: str) -> float | None:
     return None
 
 
+_STRIP_TICKERS = [("SPY", "SPY"), ("QQQ", "QQQ"), ("VIX", "^VIX"), ("BTC", "BTC-USD")]
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _fetch_ticker_strip() -> list:
+    out = []
+    for label, sym in _STRIP_TICKERS:
+        price = _live_price(sym)
+        prev  = _prev_close(sym)
+        pct   = ((price - prev) / prev * 100) if (price and prev and prev != 0) else None
+        out.append({"label": label, "price": price, "pct": pct})
+    return out
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _fetch_market_data() -> dict:
     """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
@@ -989,6 +1003,29 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ── ticker strip ─────────────────────────────────────────────────────────────
+_strip_data = _fetch_ticker_strip()
+_strip_parts = []
+for _si in _strip_data:
+    _sp = f"${_si['price']:,.2f}" if _si["price"] else "—"
+    if _si["pct"] is not None:
+        _sc = "#00e676" if _si["pct"] >= 0 else "#ff5252"
+        _spct = f'<span style="color:{_sc}">{_si["pct"]:+.2f}%</span>'
+    else:
+        _spct = '<span style="color:#666">—</span>'
+    _strip_parts.append(
+        f'<span style="display:inline-flex;align-items:center;gap:7px;">'
+        f'<b style="color:#fff;letter-spacing:.03em">{_si["label"]}</b>'
+        f'<span style="color:#bbb">{_sp}</span>{_spct}</span>'
+    )
+st.markdown(
+    '<div style="background:#1a1a2e;padding:7px 20px;display:flex;flex-wrap:wrap;'
+    'gap:24px;align-items:center;font-size:0.82rem;border-radius:8px;margin-bottom:14px;">'
+    + "  ·  ".join(_strip_parts)
+    + "</div>",
+    unsafe_allow_html=True,
+)
+
 # ── challenge tracker ────────────────────────────────────────────────────────
 _CH_MILESTONES = [
     (CHALLENGE_START, 400,            "$200 → $400  ·  First Double"),
@@ -1254,7 +1291,7 @@ with tab1:
 
 with tab2:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#1a1a1a;margin:0 0 14px;">Options Desk</p>', unsafe_allow_html=True)
-    od_tab_a, od_tab_b, od_tab_c = st.tabs(["📋  Active Positions", "🔎  Options Scanner", "🎯  Evaluate a Play"])
+    od_tab_a, od_tab_b, od_tab_c, od_tab_d = st.tabs(["📋  Active Positions", "🔎  Options Scanner", "🎯  Evaluate a Play", "📊  Sector Watch"])
 
     # ────────────────────────────────────────────────────────────────────────
     # A — Active Positions
@@ -1295,12 +1332,19 @@ with tab2:
                 live_str = f"${live:.2f}" if live is not None else "—"
 
                 earn_warn = ""
+                _hard_sell_banner = ""
                 if row["earnings_date"]:
                     try:
                         ed = datetime.strptime(str(row["earnings_date"]), "%Y-%m-%d").date()
                         d = (ed - today).days
                         if 0 <= d <= 7:
                             earn_warn = f'<span class="badge badge-yellow">⚠ Earnings in {d}d</span>'
+                            _hard_sell_banner = (
+                                f'<div style="background:#fff3e0;border:1.5px solid #ff6d00;border-radius:7px;'
+                                f'padding:8px 12px;margin-top:10px;font-size:0.85rem;font-weight:700;color:#bf360c;">'
+                                f'⚠️ HARD SELL — Exit by 9:45 AM on {row["earnings_date"]} to avoid IV crush.'
+                                f'</div>'
+                            )
                     except Exception:
                         pass
 
@@ -1356,25 +1400,51 @@ with tab2:
     {_field("Entry",     f"${row['entry_price']:.2f}")}
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
-    {_field("P&L $",     _pnl_d_str)}
-    {_field("P&L %",     _pnl_p_str)}
   </div>
-  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}
+  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}
 </div>
 """, unsafe_allow_html=True)
 
+                # Current Option $ input + P&L — visually connected to card
                 _lop_key = f"live_opt_{int(row['id'])}"
                 _lop_default = float(_lop) if _lop_valid else 0.0
-                st.number_input(
-                    "Option $ now",
-                    min_value=0.0,
-                    value=_lop_default,
-                    step=0.01,
-                    format="%.2f",
-                    key=_lop_key,
-                    on_change=_on_live_opt_change,
-                    args=(int(row["id"]), _lop_key),
-                )
+                _inp_col, _pnl_col = st.columns([1, 2])
+                with _inp_col:
+                    st.markdown(
+                        '<div style="background:#e3f2fd;border-radius:8px;padding:6px 10px 2px 10px;'
+                        'margin-top:-4px;border:1.5px solid #90caf9;">',
+                        unsafe_allow_html=True,
+                    )
+                    st.number_input(
+                        "Current Option $",
+                        min_value=0.0,
+                        value=_lop_default,
+                        step=0.01,
+                        format="%.2f",
+                        key=_lop_key,
+                        on_change=_on_live_opt_change,
+                        args=(int(row["id"]), _lop_key),
+                    )
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with _pnl_col:
+                    if _lop_valid:
+                        st.markdown(
+                            f'<div style="padding:10px 0 0 8px;">'
+                            f'<span style="font-size:1.4rem;font-weight:900;color:{_pc};">'
+                            f'${_pnl_d:+,.2f}</span>'
+                            f'<span style="font-size:1.05rem;font-weight:700;color:{_pc};margin-left:10px;">'
+                            f'{_pnl_p:+.1f}%</span>'
+                            f'<span style="font-size:0.75rem;color:#999;margin-left:8px;">P&amp;L</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            '<div style="padding:14px 0 0 8px;color:#bbb;font-size:0.85rem;">'
+                            'Enter current option price to see P&amp;L'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
 
                 if st.button(f"🗑 Remove #{int(row['id'])}", key=f"del_{row['id']}"):
                     _delete_options_position(int(row["id"]))
@@ -1706,6 +1776,52 @@ with tab2:
   <div style="margin-top:12px;padding:8px 12px;background:{_earn_bg};border-radius:8px;color:{_earn_fg};font-weight:600;font-size:0.85rem;">{_earn_txt}</div>{_iv_extra}
 </div>
 """, unsafe_allow_html=True)
+
+
+    # ────────────────────────────────────────────────────────────────────────
+    # D — Sector Watch
+    # ────────────────────────────────────────────────────────────────────────
+
+    _SECTOR_WATCH = {
+        "⚛️ Quantum":    ["RGTI", "QBTS", "QUBT", "IONQ"],
+        "🛡️ Defense/AI": ["BBAI", "PLTR"],
+        "🚀 Space":      ["RKLB", "ASTS", "LUNR"],
+        "💾 Chips":      ["AMD", "NVDA", "MU"],
+        "₿ Crypto":     ["MARA", "RIOT", "COIN"],
+        "⚡ Momentum":   ["SOFI", "DKNG", "SNAP", "HOOD"],
+    }
+
+    with od_tab_d:
+        st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#1a1a1a;margin:0 0 4px;">Sector Watch</p>', unsafe_allow_html=True)
+        st.caption("Live prices per sector — IV%, Conviction, Catalyst and Rating are manually updated.")
+
+        _sw_sector_tabs = st.tabs(list(_SECTOR_WATCH.keys()))
+        for _sw_tab, (_sw_sector, _sw_tickers) in zip(_sw_sector_tabs, _SECTOR_WATCH.items()):
+            with _sw_tab:
+                _sw_rows = []
+                for _sw_t in _sw_tickers:
+                    _sw_price = _live_price(_sw_t)
+                    _sw_prev  = _prev_close(_sw_t)
+                    if _sw_price and _sw_prev and _sw_prev != 0:
+                        _sw_chg = (_sw_price - _sw_prev) / _sw_prev * 100
+                        _sw_chg_str = f"{_sw_chg:+.2f}%"
+                    else:
+                        _sw_chg_str = "—"
+                    _sw_rows.append({
+                        "Ticker":     _sw_t,
+                        "Price":      f"${_sw_price:.2f}" if _sw_price else "—",
+                        "Change %":   _sw_chg_str,
+                        "IV%":        "—",
+                        "Conviction": "—",
+                        "Earnings":   "—",
+                        "Catalyst":   "—",
+                        "Rating":     "—",
+                    })
+                st.dataframe(
+                    pd.DataFrame(_sw_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
