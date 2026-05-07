@@ -267,6 +267,35 @@ def _live_price(ticker: str) -> float | None:
     return None
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_market_data() -> dict:
+    """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
+    out = {"vix": None, "spy_price": None, "spy_ma200": None, "spy_rsi": None}
+    try:
+        vix_h = yf.Ticker("^VIX").history(period="2d")
+        if not vix_h.empty:
+            out["vix"] = round(float(vix_h["Close"].iloc[-1]), 2)
+    except Exception:
+        pass
+    try:
+        spy_h = yf.Ticker("SPY").history(period="1y")
+        if len(spy_h) >= 50:
+            closes = spy_h["Close"]
+            out["spy_price"] = round(float(closes.iloc[-1]), 2)
+            if len(closes) >= 200:
+                out["spy_ma200"] = round(float(closes.tail(200).mean()), 2)
+            delta = closes.diff().dropna()
+            g_avg = delta.clip(lower=0).rolling(14).mean().iloc[-1]
+            l_avg = (-delta.clip(upper=0)).rolling(14).mean().iloc[-1]
+            if float(l_avg) == 0:
+                out["spy_rsi"] = 100.0
+            else:
+                out["spy_rsi"] = round(100 - 100 / (1 + float(g_avg) / float(l_avg)), 1)
+    except Exception:
+        pass
+    return out
+
+
 # ── db connection ─────────────────────────────────────────────────────────────
 
 def get_db_connection():
@@ -615,6 +644,14 @@ def _field(label: str, value: str, color: str = "#000000") -> str:
     )
 
 
+def _score_bar_html(val: int, color: str) -> str:
+    return (
+        f'<div style="background:#f2f2f2;border-radius:100px;height:5px;overflow:hidden;">'
+        f'<div style="background:{color};border-radius:100px;height:5px;width:{val}%;"></div>'
+        f'</div>'
+    )
+
+
 # ── persistence helpers ───────────────────────────────────────────────────────
 
 def _save_balance(balance: float) -> None:
@@ -634,6 +671,87 @@ def _save_watchlist(tickers: list) -> None:
         f.write("]\n")
     import signals.indicators as _si
     _si.WATCHLIST = list(tickers)
+
+
+# ── scenario engine data ──────────────────────────────────────────────────────
+
+_SCENARIOS: dict = {
+    "Fed Raises Rates": {
+        "summary": "Higher rates pressure growth valuations and expand net interest margins for banks.",
+        "sectors": [
+            ("Banks & Financials",   "positive", "Net interest margin expands — core business improves"),
+            ("Tech / High-Growth",   "negative", "Discount rate rises → valuations compress sharply"),
+            ("Crypto & Mining",      "negative", "Risk-off rotation — liquidity tightens, speculative assets dump"),
+            ("Real Estate / REITs",  "negative", "Mortgage rates rise, demand falls"),
+            ("Telecom (bond proxy)", "negative", "Sells off with rising rates like a bond"),
+            ("Auto / Industrials",   "neutral",  "Higher financing costs offset by steady demand"),
+        ],
+        "vulnerable": ["PLTR", "RBLX", "DKNG", "SQ", "SOFI", "MARA", "RIOT", "COIN", "SNAP"],
+        "benefiting": ["BAC", "WFC", "KEY"],
+        "action":     "Reduce tech and crypto exposure. Hold or add banks. Avoid high-multiple growth names.",
+    },
+    "Market Drops 10%": {
+        "summary": "Broad risk-off sell-off. High-beta names lead the decline.",
+        "sectors": [
+            ("Crypto / Bitcoin Mining", "negative", "Highest beta — dumps hardest in risk-off"),
+            ("Speculative Tech",        "negative", "High-multiple names correct sharply"),
+            ("Banks",                   "negative", "Credit risk fears weigh, less than growth names"),
+            ("Auto",                    "negative", "Consumer spending fears hurt cyclicals"),
+            ("Telecom (dividend)",      "neutral",  "Defensive dividend offers relative stability"),
+        ],
+        "vulnerable": ["MARA", "RIOT", "COIN", "RBLX", "DKNG", "HOOD", "SQ", "PLTR"],
+        "benefiting": ["T", "KEY"],
+        "action":     "Close speculative call positions. Hold dividend payers. Wait for stabilization before new entries.",
+    },
+    "VIX Spikes Above 35": {
+        "summary": "Panic mode. Options premiums explode. Long calls get IV-crushed after the spike.",
+        "sectors": [
+            ("Options (long calls)",  "negative", "IV crush follows spike — even winning trades can lose value"),
+            ("Crypto",                "negative", "Correlates with equity fear — dumps hard"),
+            ("Defensive Dividend",    "positive", "Flight to safety benefits stable income names"),
+            ("Growth Tech",           "negative", "Risk-off rotation hits growth hardest"),
+        ],
+        "vulnerable": ["MARA", "RIOT", "COIN", "PLTR", "RBLX", "SNAP", "DKNG"],
+        "benefiting": ["T", "BAC", "WFC", "KEY"],
+        "action":     "Do NOT buy options when VIX > 35. Close open longs. Wait for VIX to drop below 25.",
+    },
+    "S&P Breaks 200-Day MA": {
+        "summary": "Bear market signal. Momentum reverses. Technical selling accelerates across the board.",
+        "sectors": [
+            ("All Sectors",         "negative", "200-day break triggers broad technical selling"),
+            ("High Beta / Crypto",  "negative", "Speculative names see outsized declines"),
+            ("Defensive Dividend",  "neutral",  "Less damage but not immune"),
+        ],
+        "vulnerable": ["PLTR", "RBLX", "MARA", "RIOT", "COIN", "DKNG", "SQ", "HOOD", "SNAP"],
+        "benefiting": [],
+        "action":     "Stop all new entries. Tighten stops on existing positions. Close anything above breakeven.",
+    },
+    "Strong Jobs Report": {
+        "summary": "Fed stays hawkish longer. Bond yields rise. Consumer spending outlook improves.",
+        "sectors": [
+            ("Banks",                   "positive", "Higher-for-longer rates boost net interest margin"),
+            ("Consumer Discretionary",  "positive", "Employment strength drives consumer spending"),
+            ("Tech / High-Growth",      "negative", "Rate expectations rise, multiples compress"),
+            ("Crypto",                  "neutral",  "Mixed — strong economy vs hawkish Fed pressure"),
+        ],
+        "vulnerable": ["PLTR", "RBLX", "SOFI", "SQ", "SNAP"],
+        "benefiting": ["BAC", "WFC", "KEY", "F", "GM", "UBER"],
+        "action":     "Hold banks and consumer-facing plays. Reduce high-multiple tech positions.",
+    },
+    "Inflation Rises": {
+        "summary": "Sticky prices keep Fed hawkish. Future cash flows worth less at higher discount rates.",
+        "sectors": [
+            ("Banks",                 "positive", "Rate hike expectations boost NIM outlook"),
+            ("Tech / High P/E",       "negative", "Future cash flows discounted at higher rates"),
+            ("Telecom (bond proxy)",  "negative", "Underperforms in rising-rate environment"),
+            ("Crypto",                "negative", "Acts risk-off in practice — not a reliable inflation hedge"),
+            ("Auto / Industrials",    "neutral",  "Input costs rise but pricing power partially offsets"),
+        ],
+        "vulnerable": ["PLTR", "RBLX", "SNAP", "DKNG", "T", "MARA", "RIOT", "COIN"],
+        "benefiting": ["BAC", "WFC", "KEY", "F", "GM"],
+        "action":     "Reduce growth and crypto exposure. Add bank names on dip. Shorten options duration.",
+    },
+}
 
 
 # ── session state init ────────────────────────────────────────────────────────
@@ -736,11 +854,14 @@ if st.session_state.get("ch_editing", False):
         st.rerun()
 
 # ── tabs (Options Desk is first / default) ────────────────────────────────────
-tab2, tab1, tab3, tab4 = st.tabs([
+tab2, tab1, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "⚡  Options Desk",
     "📊  Signals",
     "🔍  Research",
     "📒  Trade Log",
+    "🌍  Market Intel",
+    "🎯  Stock Scorer",
+    "⚡  Scenario Engine",
 ])
 
 
@@ -1441,3 +1562,271 @@ with tab4:
             "P/L %":   lambda v: f"{v:+.2f}%" if pd.notna(v) else "Open",
         })
         st.dataframe(sty, use_container_width=True, hide_index=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 5 — Market Intel
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with tab5:
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 14px;">Market Intel</p>', unsafe_allow_html=True)
+
+    _mi_today = date.today()
+    _fed_date  = date(2026, 6, 17)
+    _cpi_date  = date(2026, 5, 13)
+    _fed_days  = (_fed_date - _mi_today).days
+    _cpi_days  = (_cpi_date - _mi_today).days
+    _fed_disp  = f"{_fed_days}d" if _fed_days > 0 else ("Today" if _fed_days == 0 else "Past")
+    _cpi_disp  = f"{_cpi_days}d" if _cpi_days > 0 else ("Today" if _cpi_days == 0 else "Past")
+
+    with st.spinner("Loading market data…"):
+        _mkt = _fetch_market_data()
+
+    # ── macro calendar ────────────────────────────────────────────────────────
+    _mi_c1, _mi_c2, _mi_c3 = st.columns(3)
+    with _mi_c1:
+        st.markdown(metric_card("Next Fed Meeting", _fed_disp, "June 17–18, 2026"), unsafe_allow_html=True)
+    with _mi_c2:
+        st.markdown(metric_card("Next CPI Report", _cpi_disp, "May 13, 2026"), unsafe_allow_html=True)
+    with _mi_c3:
+        _vix = _mkt["vix"]
+        if _vix is not None:
+            if _vix > 35:
+                _vcls, _vlbl = "loss", "⚠ Danger Zone"
+            elif _vix > 25:
+                _vcls, _vlbl = "loss", "Elevated"
+            elif _vix > 20:
+                _vcls, _vlbl = "warn", "Cautious"
+            else:
+                _vcls, _vlbl = "gain", "Calm"
+            st.markdown(metric_card("VIX (Fear Index)", f"{_vix:.1f}", _vlbl, _vcls), unsafe_allow_html=True)
+        else:
+            st.markdown(metric_card("VIX (Fear Index)", "—", "unavailable"), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── market mode row ───────────────────────────────────────────────────────
+    _mi_c4, _mi_c5, _mi_c6 = st.columns(3)
+    with _mi_c4:
+        _sp = _mkt["spy_price"]
+        _ma = _mkt["spy_ma200"]
+        if _sp and _ma:
+            _bull  = _sp > _ma
+            _mcls  = "gain" if _bull else "loss"
+            _mlbl  = "🐂 Bull Market" if _bull else "🐻 Bear Market"
+            _dpct  = round((_sp / _ma - 1) * 100, 1)
+            _dsub  = f"SPY {'+' if _dpct >= 0 else ''}{_dpct}% vs MA"
+            st.markdown(metric_card("SPY vs 200-Day MA", _mlbl, _dsub, _mcls), unsafe_allow_html=True)
+        else:
+            st.markdown(metric_card("SPY vs 200-Day MA", "—", "unavailable"), unsafe_allow_html=True)
+    with _mi_c5:
+        _spy_rsi = _mkt["spy_rsi"]
+        if _spy_rsi is not None:
+            if _spy_rsi > 70:
+                _scls, _slbl = "loss", "Extreme Greed"
+            elif _spy_rsi > 60:
+                _scls, _slbl = "warn", "Greed"
+            elif _spy_rsi >= 40:
+                _scls, _slbl = "flat", "Neutral"
+            elif _spy_rsi >= 30:
+                _scls, _slbl = "warn", "Fear"
+            else:
+                _scls, _slbl = "gain", "Extreme Fear"
+            st.markdown(metric_card("Market Sentiment", _slbl, f"SPY RSI {_spy_rsi:.0f}", _scls), unsafe_allow_html=True)
+        else:
+            st.markdown(metric_card("Market Sentiment", "—", "unavailable"), unsafe_allow_html=True)
+    with _mi_c6:
+        _sp_disp = f"${_mkt['spy_price']:,.2f}" if _mkt["spy_price"] else "—"
+        _ma_disp = f"${_mkt['spy_ma200']:,.2f}" if _mkt["spy_ma200"] else "—"
+        st.markdown(metric_card("SPY Price", _sp_disp, f"200-MA: {_ma_disp}"), unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── earnings this week ────────────────────────────────────────────────────
+    st.markdown('<p style="font-size:1.0rem;font-weight:700;color:#000;margin:0 0 10px;">Earnings This Week</p>', unsafe_allow_html=True)
+    _earn_sched = [
+        ("RKLB", "Tonight"), ("MARA", "Tonight"), ("ASTS", "May 11"),
+        ("RGTI", "May 11"),  ("ACHR", "May 11"),  ("QBTS", "May 12"), ("OKLO", "May 12"),
+    ]
+    _mi_wl = set(st.session_state.wl_tickers)
+    for _erow in [_earn_sched[i:i+4] for i in range(0, len(_earn_sched), 4)]:
+        _ecols = st.columns(len(_erow))
+        for _ec, (_etk, _ewhen) in zip(_ecols, _erow):
+            with _ec:
+                _in_wl    = _etk in _mi_wl
+                _tonight  = "Tonight" in _ewhen
+                _ebcls    = "badge-red" if _tonight else "badge-yellow"
+                _ewtxt    = "Tonight — Avoid!" if _tonight else _ewhen
+                _wlbadge  = '<span class="badge badge-blue" style="margin-left:4px;">WL</span>' if _in_wl else ""
+                _cborder  = "border-color:#ffcdd2;" if _tonight else ""
+                st.markdown(f'<div class="card" style="text-align:center;padding:14px 12px;{_cborder}"><div style="font-size:1.1rem;font-weight:800;color:#000;">{_etk}</div><div style="margin:6px 0;"><span class="badge {_ebcls}">{_ewtxt}</span>{_wlbadge}</div></div>', unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── macro notes ────────────────────────────────────────────────────────────
+    st.markdown('<p style="font-size:1.0rem;font-weight:700;color:#000;margin:0 0 10px;">Macro Context</p>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Current Environment</div><div style="font-size:0.93rem;color:#000;line-height:1.75;">Fed on hold, watching inflation data closely. Next CPI: <b>May 13</b>. Next Fed meeting: <b>June 17–18</b>. Market is in data-dependent mode — strong jobs or sticky inflation could push the Fed to stay higher for longer. Monitor the SPY 200-day MA as the key bull/bear dividing line. Avoid buying options into any earnings on the schedule above.</div></div>', unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 6 — Stock Scorer
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with tab6:
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
+    st.caption("Opportunity, risk, and volatility scores derived from signal strength, RSI position, and volume ratio.")
+
+    with st.spinner("Scoring watchlist…"):
+        _ss_df = _scored_stocks()
+
+    if _ss_df.empty:
+        st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
+    else:
+        _ss_rows = []
+        for _, _r in _ss_df.iterrows():
+            _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
+            _sig  = float(_r["Buy Signal"]) if pd.notna(_r["Buy Signal"]) else 0.0
+            _vrat = float(_r["Vol Ratio"])  if pd.notna(_r["Vol Ratio"])  else 1.0
+
+            _risk  = min(int(abs(_rsi - 50) * 2), 100)
+            _opp   = min(int(_sig), 100)
+            _volsc = min(int(_vrat * 25), 100)
+
+            if _opp >= 70 and _risk < 40:
+                _rtg, _rcls = "Strong Buy", "badge-green"
+            elif _opp >= 55 and _risk < 55:
+                _rtg, _rcls = "Buy", "badge-blue"
+            elif _opp >= 40:
+                _rtg, _rcls = "Hold", "badge-yellow"
+            elif _opp >= 25:
+                _rtg, _rcls = "Watch", "badge-orange"
+            else:
+                _rtg, _rcls = "Avoid", "badge-red"
+
+            if _opp >= 60 and _risk < 50:
+                _zone, _zcol = "Buy Zone", "#00c853"
+            elif _risk >= 60 or _opp < 25:
+                _zone, _zcol = "Danger Zone", "#ff1744"
+            elif _opp >= 35:
+                _zone, _zcol = "Hold Zone", "#e65100"
+            else:
+                _zone, _zcol = "Watch Zone", "#999"
+
+            _ss_rows.append({
+                "ticker": str(_r["Ticker"]),
+                "price":  float(_r["Close"]),
+                "opp":    _opp,
+                "risk":   _risk,
+                "volsc":  _volsc,
+                "rtg":    _rtg,
+                "rcls":   _rcls,
+                "zone":   _zone,
+                "zcol":   _zcol,
+            })
+
+        _rtg_order = {"Strong Buy": 0, "Buy": 1, "Hold": 2, "Watch": 3, "Avoid": 4}
+        _ss_rows.sort(key=lambda x: (_rtg_order.get(x["rtg"], 5), -x["opp"]))
+
+        for _si in range(0, len(_ss_rows), 2):
+            _pair  = _ss_rows[_si:_si + 2]
+            _scols = st.columns(len(_pair))
+            for _scorer_col, _sr in zip(_scols, _pair):
+                with _scorer_col:
+                    _obar = _score_bar_html(_sr["opp"],   "#00c853")
+                    _rbar = _score_bar_html(_sr["risk"],  "#ff1744")
+                    _vbar = _score_bar_html(_sr["volsc"], "#1565c0")
+                    _risk_col = "#ff1744" if _sr["risk"] > 60 else "#000"
+                    st.markdown(f"""
+<div class="options-card">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <span class="ticker">{_sr['ticker']}</span>
+    <span style="color:#999;font-size:0.85rem;font-weight:600;">${_sr['price']:.2f}</span>
+    <span class="badge {_sr['rcls']}" style="margin-left:auto;">{_sr['rtg']}</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+    {_field("Opportunity", str(_sr['opp']) + "/100")}
+    {_field("Risk", str(_sr['risk']) + "/100", _risk_col)}
+    {_field("Vol Activity", str(_sr['volsc']) + "/100")}
+  </div>
+  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:3px;">Opportunity</div>{_obar}
+  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Risk</div>{_rbar}
+  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Volume Activity</div>{_vbar}
+  <div style="margin-top:12px;padding:6px 10px;background:#f8f9fa;border-radius:8px;font-size:0.82rem;font-weight:700;color:{_sr['zcol']};text-align:center;">{_sr['zone']}</div>
+</div>""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 7 — Scenario Engine
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with tab7:
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
+    st.caption("Select a macro scenario to see projected sector impacts and which watchlist tickers are affected.")
+
+    _se_scenario = st.selectbox(
+        "Select scenario",
+        list(_SCENARIOS.keys()),
+        key="se_scenario_sel",
+        label_visibility="collapsed",
+    )
+
+    _sc_data = _SCENARIOS[_se_scenario]
+    _se_wl   = set(st.session_state.wl_tickers)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Summary
+    st.markdown(f'<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Scenario</div><div style="font-size:1.0rem;font-weight:700;color:#000;margin-bottom:6px;">{_se_scenario}</div><div style="font-size:0.92rem;color:#424242;line-height:1.7;">{_sc_data["summary"]}</div></div>', unsafe_allow_html=True)
+
+    # Sector impact table
+    st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
+    _sec_html = ""
+    for _sname, _simpact, _snote in _sc_data["sectors"]:
+        if _simpact == "positive":
+            _scolor, _sicon = "#00c853", "↑ Positive"
+        elif _simpact == "negative":
+            _scolor, _sicon = "#ff1744", "↓ Negative"
+        else:
+            _scolor, _sicon = "#424242", "→ Neutral"
+        _sec_html += (
+            f'<div style="display:grid;grid-template-columns:180px 100px 1fr;align-items:start;'
+            f'gap:12px;padding:9px 0;border-bottom:1px solid #f2f2f2;">'
+            f'<div style="font-weight:700;color:#000;font-size:0.87rem;">{_sname}</div>'
+            f'<div style="font-weight:700;color:{_scolor};font-size:0.85rem;">{_sicon}</div>'
+            f'<div style="color:#424242;font-size:0.82rem;line-height:1.5;">{_snote}</div>'
+            f'</div>'
+        )
+    st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
+
+    # Vulnerable / Benefiting columns
+    _se_vc, _se_bc = st.columns(2)
+
+    with _se_vc:
+        st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
+        _vuln = _sc_data["vulnerable"]
+        if _vuln:
+            _vhtml = ""
+            for _vt in sorted(_vuln, key=lambda t: (0 if t in _se_wl else 1, t)):
+                _vcls = "badge-red" if _vt in _se_wl else "badge-yellow"
+                _vsuf = " ★" if _vt in _se_wl else ""
+                _vhtml += f'<span class="badge {_vcls}" style="margin:3px 4px 3px 0;">{_vt}{_vsuf}</span>'
+            st.markdown(f'<div class="card" style="padding:14px 18px;">{_vhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
+
+    with _se_bc:
+        st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
+        _bene = _sc_data["benefiting"]
+        if _bene:
+            _bhtml = ""
+            for _bt in sorted(_bene, key=lambda t: (0 if t in _se_wl else 1, t)):
+                _bcls = "badge-green" if _bt in _se_wl else "badge-blue"
+                _bsuf = " ★" if _bt in _se_wl else ""
+                _bhtml += f'<span class="badge {_bcls}" style="margin:3px 4px 3px 0;">{_bt}{_bsuf}</span>'
+            st.markdown(f'<div class="card" style="padding:14px 18px;">{_bhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
+
+    # Suggested action
+    st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card" style="background:#f8f9fa;border-left:4px solid #000;"><div style="font-size:0.93rem;color:#000;font-weight:600;line-height:1.7;">{_sc_data["action"]}</div></div>', unsafe_allow_html=True)
