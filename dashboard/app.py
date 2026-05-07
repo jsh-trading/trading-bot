@@ -24,6 +24,8 @@ import json
 import pandas as pd
 import yfinance as yf
 import streamlit as st
+import warnings
+warnings.filterwarnings("ignore", message=".*use_container_width.*")
 import anthropic
 from streamlit_autorefresh import st_autorefresh
 
@@ -2087,7 +2089,7 @@ with tab4:
             "Exit $":  lambda v: f"${v:.2f}" if pd.notna(v) else "—",
             "P/L %":   lambda v: f"{v:+.2f}%" if pd.notna(v) else "Open",
         })
-        st.dataframe(sty, use_container_width=True, hide_index=True)
+        st.dataframe(sty, use_container_width=True, hide_index=True)  # noqa
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
