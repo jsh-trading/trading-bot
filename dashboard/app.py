@@ -2259,14 +2259,17 @@ with tab2:
                         return "color:#ff1744;font-weight:700"
                     return ""
 
-                _sw_styled = (
-                    _sw_df.style
-                    .applymap(_color_chg, subset=["Change %"])
-                    .format({
-                        "Price":    lambda v: f"${v:.2f}" if pd.notna(v) else "—",
-                        "Change %": lambda v: f"{v:+.2f}%" if pd.notna(v) else "—",
-                    })
-                )
+                # pandas ≥ 2.1 renamed Styler.applymap → Styler.map. Use a
+                # try/except so the table still renders if either name is missing.
+                _styler = _sw_df.style
+                if hasattr(_styler, "map"):
+                    _styler = _styler.map(_color_chg, subset=["Change %"])
+                else:
+                    _styler = _styler.applymap(_color_chg, subset=["Change %"])
+                _sw_styled = _styler.format({
+                    "Price":    lambda v: f"${v:.2f}" if pd.notna(v) else "—",
+                    "Change %": lambda v: f"{v:+.2f}%" if pd.notna(v) else "—",
+                })
                 st.dataframe(
                     _sw_styled,
                     use_container_width=True,
