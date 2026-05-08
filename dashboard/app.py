@@ -1209,7 +1209,7 @@ elif 15 * 60 + 30 <= _now_mins < 16 * 60:
     )
 
 # ── tabs (Options Desk is first / default) ────────────────────────────────────
-tab2, tab1, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab2, tab1, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "⚡  Options Desk",
     "📊  Signals",
     "🔍  Research",
@@ -2274,87 +2274,87 @@ with tab5:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Congressional Trades (inside Market Intel)
+# Tab 8 — Congressional Trades
 # ═══════════════════════════════════════════════════════════════════════════════
 
-    st.divider()
-    st.markdown('<p style="font-size:1.0rem;font-weight:700;color:#000;margin:0 0 10px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
-    st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
+with tab8:
+st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
+st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
 
-    @st.cache_data(ttl=3600)
-    def _fetch_congress_trades():
-        try:
-            import requests as _req
-            r = _req.get("https://api.quiverquant.com/beta/live/congresstrading",
-                headers={"accept": "application/json"}, timeout=10)
-            if r.status_code == 200:
-                return r.json()
-        except:
-            pass
-        return []
+@st.cache_data(ttl=3600)
+def _fetch_congress_trades():
+    try:
+        import requests as _req
+        r = _req.get("https://api.quiverquant.com/beta/live/congresstrading",
+            headers={"accept": "application/json"}, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+    except:
+        pass
+    return []
 
-    _ct_data = _fetch_congress_trades()
+_ct_data = _fetch_congress_trades()
 
-    if not _ct_data:
-        st.markdown('<div class="card"><span style="color:#aaa;">Congressional trade data unavailable — API may require a free key at quiverquant.com</span></div>', unsafe_allow_html=True)
-    else:
-        # Filter buttons
-        _ct_filter = st.radio("Filter", ["All", "Buys", "Sales", "Senate", "House"],
-            horizontal=True, key="ct_filter", label_visibility="collapsed")
+if not _ct_data:
+    st.markdown('<div class="card"><span style="color:#aaa;">Congressional trade data unavailable — API may require a free key at quiverquant.com</span></div>', unsafe_allow_html=True)
+else:
+    # Filter buttons
+    _ct_filter = st.radio("Filter", ["All", "Buys", "Sales", "Senate", "House"],
+        horizontal=True, key="ct_filter", label_visibility="collapsed")
 
-        _ct_watchlist = set(st.session_state.get("wl_tickers", []))
+    _ct_watchlist = set(st.session_state.get("wl_tickers", []))
 
-        def _ct_card(t, border_color=None):
-            _tx   = t.get("Transaction", "")
-            _is_buy = "Purchase" in _tx
-            _color  = "#00c853" if _is_buy else "#ff1744"
-            _label  = "BUY" if _is_buy else "SALE"
-            _chamber = t.get("House", "")
-            _border = border_color or ("#00c853" if _is_buy else "#e0e0e0")
-            _in_wl  = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
-            return f"""<div style="background:#fff;border:1.5px solid {_border};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+    def _ct_card(t, border_color=None):
+        _tx   = t.get("Transaction", "")
+        _is_buy = "Purchase" in _tx
+        _color  = "#00c853" if _is_buy else "#ff1744"
+        _label  = "BUY" if _is_buy else "SALE"
+        _chamber = t.get("House", "")
+        _border = border_color or ("#00c853" if _is_buy else "#e0e0e0")
+        _in_wl  = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
+        return f"""<div style="background:#fff;border:1.5px solid {_border};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
   <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
   <span style="background:{_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_label}</span>
   <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_chamber}</span>
   <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')} <span style="color:#999;font-weight:400;">· {t.get('Party','')}</span></div>
   <div style="color:#666;font-size:0.78rem;margin-top:2px;">
-    {_in_wl}💰 {t.get('Range','—')} &nbsp;·&nbsp;
-    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
-    📋 Disclosed: {t.get('ReportDate','—')}
+{_in_wl}💰 {t.get('Range','—')} &nbsp;·&nbsp;
+📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
+📋 Disclosed: {t.get('ReportDate','—')}
   </div>
 </div>"""
 
-        # Apply filter to Your Tickers too
-        _ct_your_all = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
-        if _ct_filter == "Buys":
-            _ct_your = [t for t in _ct_your_all if "Purchase" in t.get("Transaction","")]
-        elif _ct_filter == "Sales":
-            _ct_your = [t for t in _ct_your_all if "Sale" in t.get("Transaction","")]
-        elif _ct_filter == "Senate":
-            _ct_your = [t for t in _ct_your_all if t.get("House","") == "Senate"]
-        elif _ct_filter == "House":
-            _ct_your = [t for t in _ct_your_all if t.get("House","") in ("House", "Representatives")]
-        else:
-            _ct_your = _ct_your_all
-        if _ct_your:
-            st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
-            for t in _ct_your[:5]:
-                st.markdown(_ct_card(t, "#1565c0"), unsafe_allow_html=True)
+    # Apply filter to Your Tickers too
+    _ct_your_all = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
+    if _ct_filter == "Buys":
+        _ct_your = [t for t in _ct_your_all if "Purchase" in t.get("Transaction","")]
+    elif _ct_filter == "Sales":
+        _ct_your = [t for t in _ct_your_all if "Sale" in t.get("Transaction","")]
+    elif _ct_filter == "Senate":
+        _ct_your = [t for t in _ct_your_all if t.get("House","") == "Senate"]
+    elif _ct_filter == "House":
+        _ct_your = [t for t in _ct_your_all if t.get("House","") in ("House", "Representatives")]
+    else:
+        _ct_your = _ct_your_all
+    if _ct_your:
+        st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
+        for t in _ct_your[:5]:
+            st.markdown(_ct_card(t, "#1565c0"), unsafe_allow_html=True)
 
-        st.markdown("**📋 Full Feed** — All recent Senate & House disclosures")
+    st.markdown("**📋 Full Feed** — All recent Senate & House disclosures")
 
-        _ct_filtered = _ct_data
-        if _ct_filter == "Buys":
-            _ct_filtered = [t for t in _ct_data if "Purchase" in t.get("Transaction","")]
-        elif _ct_filter == "Sales":
-            _ct_filtered = [t for t in _ct_data if "Sale" in t.get("Transaction","")]
-        elif _ct_filter == "Senate":
-            _ct_filtered = [t for t in _ct_data if t.get("House","") == "Senate"]
-        elif _ct_filter == "House":
-            _ct_filtered = [t for t in _ct_data if t.get("House","") in ("House", "Representatives")]
+    _ct_filtered = _ct_data
+    if _ct_filter == "Buys":
+        _ct_filtered = [t for t in _ct_data if "Purchase" in t.get("Transaction","")]
+    elif _ct_filter == "Sales":
+        _ct_filtered = [t for t in _ct_data if "Sale" in t.get("Transaction","")]
+    elif _ct_filter == "Senate":
+        _ct_filtered = [t for t in _ct_data if t.get("House","") == "Senate"]
+    elif _ct_filter == "House":
+        _ct_filtered = [t for t in _ct_data if t.get("House","") in ("House", "Representatives")]
 
-        for t in _ct_filtered[:25]:
-            st.markdown(_ct_card(t), unsafe_allow_html=True)
+    for t in _ct_filtered[:25]:
+        st.markdown(_ct_card(t), unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2362,80 +2362,80 @@ with tab5:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab6:
-    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
-    st.caption("Opportunity, risk, and volatility scores derived from signal strength, RSI position, and volume ratio.")
+st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
+st.caption("Opportunity, risk, and volatility scores derived from signal strength, RSI position, and volume ratio.")
 
-    with st.spinner("Scoring watchlist…"):
-        _ss_df = _scored_stocks()
+with st.spinner("Scoring watchlist…"):
+    _ss_df = _scored_stocks()
 
-    if _ss_df.empty:
-        st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
-    else:
-        _ss_rows = []
-        for _, _r in _ss_df.iterrows():
-            _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
-            _sig  = float(_r["Buy Signal"]) if pd.notna(_r["Buy Signal"]) else 0.0
-            _vrat = float(_r["Vol Ratio"])  if pd.notna(_r["Vol Ratio"])  else 1.0
+if _ss_df.empty:
+    st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
+else:
+    _ss_rows = []
+    for _, _r in _ss_df.iterrows():
+        _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
+        _sig  = float(_r["Buy Signal"]) if pd.notna(_r["Buy Signal"]) else 0.0
+        _vrat = float(_r["Vol Ratio"])  if pd.notna(_r["Vol Ratio"])  else 1.0
 
-            _risk  = min(int(abs(_rsi - 50) * 2), 100)
-            _opp   = min(int(_sig), 100)
-            _volsc = min(int(_vrat * 25), 100)
+        _risk  = min(int(abs(_rsi - 50) * 2), 100)
+        _opp   = min(int(_sig), 100)
+        _volsc = min(int(_vrat * 25), 100)
 
-            if _opp >= 70 and _risk < 40:
-                _rtg, _rcls = "Strong Buy", "badge-green"
-            elif _opp >= 55 and _risk < 55:
-                _rtg, _rcls = "Buy", "badge-blue"
-            elif _opp >= 40:
-                _rtg, _rcls = "Hold", "badge-yellow"
-            elif _opp >= 25:
-                _rtg, _rcls = "Watch", "badge-orange"
-            else:
-                _rtg, _rcls = "Avoid", "badge-red"
+        if _opp >= 70 and _risk < 40:
+            _rtg, _rcls = "Strong Buy", "badge-green"
+        elif _opp >= 55 and _risk < 55:
+            _rtg, _rcls = "Buy", "badge-blue"
+        elif _opp >= 40:
+            _rtg, _rcls = "Hold", "badge-yellow"
+        elif _opp >= 25:
+            _rtg, _rcls = "Watch", "badge-orange"
+        else:
+            _rtg, _rcls = "Avoid", "badge-red"
 
-            if _opp >= 60 and _risk < 50:
-                _zone, _zcol = "Buy Zone", "#00c853"
-            elif _risk >= 60 or _opp < 25:
-                _zone, _zcol = "Danger Zone", "#ff1744"
-            elif _opp >= 35:
-                _zone, _zcol = "Hold Zone", "#e65100"
-            else:
-                _zone, _zcol = "Watch Zone", "#999"
+        if _opp >= 60 and _risk < 50:
+            _zone, _zcol = "Buy Zone", "#00c853"
+        elif _risk >= 60 or _opp < 25:
+            _zone, _zcol = "Danger Zone", "#ff1744"
+        elif _opp >= 35:
+            _zone, _zcol = "Hold Zone", "#e65100"
+        else:
+            _zone, _zcol = "Watch Zone", "#999"
 
-            _ss_rows.append({
-                "ticker": str(_r["Ticker"]),
-                "price":  float(_r["Close"]),
-                "opp":    _opp,
-                "risk":   _risk,
-                "volsc":  _volsc,
-                "rtg":    _rtg,
-                "rcls":   _rcls,
-                "zone":   _zone,
-                "zcol":   _zcol,
-            })
+        _ss_rows.append({
+            "ticker": str(_r["Ticker"]),
+            "price":  float(_r["Close"]),
+            "opp":    _opp,
+            "risk":   _risk,
+            "volsc":  _volsc,
+            "rtg":    _rtg,
+            "rcls":   _rcls,
+            "zone":   _zone,
+            "zcol":   _zcol,
+        })
 
-        _rtg_order = {"Strong Buy": 0, "Buy": 1, "Hold": 2, "Watch": 3, "Avoid": 4}
-        _ss_rows.sort(key=lambda x: (_rtg_order.get(x["rtg"], 5), -x["opp"]))
+    _rtg_order = {"Strong Buy": 0, "Buy": 1, "Hold": 2, "Watch": 3, "Avoid": 4}
+    _ss_rows.sort(key=lambda x: (_rtg_order.get(x["rtg"], 5), -x["opp"]))
 
-        for _si in range(0, len(_ss_rows), 2):
-            _pair  = _ss_rows[_si:_si + 2]
-            _scols = st.columns(len(_pair))
-            for _scorer_col, _sr in zip(_scols, _pair):
-                with _scorer_col:
-                    _obar = _score_bar_html(_sr["opp"],   "#00c853")
-                    _rbar = _score_bar_html(_sr["risk"],  "#ff1744")
-                    _vbar = _score_bar_html(_sr["volsc"], "#1565c0")
-                    _risk_col = "#ff1744" if _sr["risk"] > 60 else "#000"
-                    st.markdown(f"""
+    for _si in range(0, len(_ss_rows), 2):
+        _pair  = _ss_rows[_si:_si + 2]
+        _scols = st.columns(len(_pair))
+        for _scorer_col, _sr in zip(_scols, _pair):
+            with _scorer_col:
+                _obar = _score_bar_html(_sr["opp"],   "#00c853")
+                _rbar = _score_bar_html(_sr["risk"],  "#ff1744")
+                _vbar = _score_bar_html(_sr["volsc"], "#1565c0")
+                _risk_col = "#ff1744" if _sr["risk"] > 60 else "#000"
+                st.markdown(f"""
 <div class="options-card">
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-    <span class="ticker">{_sr['ticker']}</span>
-    <span style="color:#999;font-size:0.85rem;font-weight:600;">${_sr['price']:.2f}</span>
-    <span class="badge {_sr['rcls']}" style="margin-left:auto;">{_sr['rtg']}</span>
+<span class="ticker">{_sr['ticker']}</span>
+<span style="color:#999;font-size:0.85rem;font-weight:600;">${_sr['price']:.2f}</span>
+<span class="badge {_sr['rcls']}" style="margin-left:auto;">{_sr['rtg']}</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-    {_field("Opportunity", str(_sr['opp']) + "/100")}
-    {_field("Risk", str(_sr['risk']) + "/100", _risk_col)}
-    {_field("Vol Activity", str(_sr['volsc']) + "/100")}
+{_field("Opportunity", str(_sr['opp']) + "/100")}
+{_field("Risk", str(_sr['risk']) + "/100", _risk_col)}
+{_field("Vol Activity", str(_sr['volsc']) + "/100")}
   </div>
   <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:3px;">Opportunity</div>{_obar}
   <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Risk</div>{_rbar}
@@ -2449,73 +2449,73 @@ with tab6:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab7:
-    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
-    st.caption("Select a macro scenario to see projected sector impacts and which watchlist tickers are affected.")
+st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
+st.caption("Select a macro scenario to see projected sector impacts and which watchlist tickers are affected.")
 
-    _se_scenario = st.selectbox(
-        "Select scenario",
-        list(_SCENARIOS.keys()),
-        key="se_scenario_sel",
-        label_visibility="collapsed",
+_se_scenario = st.selectbox(
+    "Select scenario",
+    list(_SCENARIOS.keys()),
+    key="se_scenario_sel",
+    label_visibility="collapsed",
+)
+
+_sc_data = _SCENARIOS[_se_scenario]
+_se_wl   = set(st.session_state.wl_tickers)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Summary
+st.markdown(f'<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Scenario</div><div style="font-size:1.0rem;font-weight:700;color:#000;margin-bottom:6px;">{_se_scenario}</div><div style="font-size:0.92rem;color:#424242;line-height:1.7;">{_sc_data["summary"]}</div></div>', unsafe_allow_html=True)
+
+# Sector impact table
+st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
+_sec_html = ""
+for _sname, _simpact, _snote in _sc_data["sectors"]:
+    if _simpact == "positive":
+        _scolor, _sicon = "#00c853", "↑ Positive"
+    elif _simpact == "negative":
+        _scolor, _sicon = "#ff1744", "↓ Negative"
+    else:
+        _scolor, _sicon = "#424242", "→ Neutral"
+    _sec_html += (
+        f'<div style="display:grid;grid-template-columns:180px 100px 1fr;align-items:start;'
+        f'gap:12px;padding:9px 0;border-bottom:1px solid #f2f2f2;">'
+        f'<div style="font-weight:700;color:#000;font-size:0.87rem;">{_sname}</div>'
+        f'<div style="font-weight:700;color:{_scolor};font-size:0.85rem;">{_sicon}</div>'
+        f'<div style="color:#424242;font-size:0.82rem;line-height:1.5;">{_snote}</div>'
+        f'</div>'
     )
+st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
 
-    _sc_data = _SCENARIOS[_se_scenario]
-    _se_wl   = set(st.session_state.wl_tickers)
+# Vulnerable / Benefiting columns
+_se_vc, _se_bc = st.columns(2)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+with _se_vc:
+    st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
+    _vuln = _sc_data["vulnerable"]
+    if _vuln:
+        _vhtml = ""
+        for _vt in sorted(_vuln, key=lambda t: (0 if t in _se_wl else 1, t)):
+            _vcls = "badge-red" if _vt in _se_wl else "badge-yellow"
+            _vsuf = " ★" if _vt in _se_wl else ""
+            _vhtml += f'<span class="badge {_vcls}" style="margin:3px 4px 3px 0;">{_vt}{_vsuf}</span>'
+        st.markdown(f'<div class="card" style="padding:14px 18px;">{_vhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
 
-    # Summary
-    st.markdown(f'<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Scenario</div><div style="font-size:1.0rem;font-weight:700;color:#000;margin-bottom:6px;">{_se_scenario}</div><div style="font-size:0.92rem;color:#424242;line-height:1.7;">{_sc_data["summary"]}</div></div>', unsafe_allow_html=True)
+with _se_bc:
+    st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
+    _bene = _sc_data["benefiting"]
+    if _bene:
+        _bhtml = ""
+        for _bt in sorted(_bene, key=lambda t: (0 if t in _se_wl else 1, t)):
+            _bcls = "badge-green" if _bt in _se_wl else "badge-blue"
+            _bsuf = " ★" if _bt in _se_wl else ""
+            _bhtml += f'<span class="badge {_bcls}" style="margin:3px 4px 3px 0;">{_bt}{_bsuf}</span>'
+        st.markdown(f'<div class="card" style="padding:14px 18px;">{_bhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
 
-    # Sector impact table
-    st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
-    _sec_html = ""
-    for _sname, _simpact, _snote in _sc_data["sectors"]:
-        if _simpact == "positive":
-            _scolor, _sicon = "#00c853", "↑ Positive"
-        elif _simpact == "negative":
-            _scolor, _sicon = "#ff1744", "↓ Negative"
-        else:
-            _scolor, _sicon = "#424242", "→ Neutral"
-        _sec_html += (
-            f'<div style="display:grid;grid-template-columns:180px 100px 1fr;align-items:start;'
-            f'gap:12px;padding:9px 0;border-bottom:1px solid #f2f2f2;">'
-            f'<div style="font-weight:700;color:#000;font-size:0.87rem;">{_sname}</div>'
-            f'<div style="font-weight:700;color:{_scolor};font-size:0.85rem;">{_sicon}</div>'
-            f'<div style="color:#424242;font-size:0.82rem;line-height:1.5;">{_snote}</div>'
-            f'</div>'
-        )
-    st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
-
-    # Vulnerable / Benefiting columns
-    _se_vc, _se_bc = st.columns(2)
-
-    with _se_vc:
-        st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
-        _vuln = _sc_data["vulnerable"]
-        if _vuln:
-            _vhtml = ""
-            for _vt in sorted(_vuln, key=lambda t: (0 if t in _se_wl else 1, t)):
-                _vcls = "badge-red" if _vt in _se_wl else "badge-yellow"
-                _vsuf = " ★" if _vt in _se_wl else ""
-                _vhtml += f'<span class="badge {_vcls}" style="margin:3px 4px 3px 0;">{_vt}{_vsuf}</span>'
-            st.markdown(f'<div class="card" style="padding:14px 18px;">{_vhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
-
-    with _se_bc:
-        st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
-        _bene = _sc_data["benefiting"]
-        if _bene:
-            _bhtml = ""
-            for _bt in sorted(_bene, key=lambda t: (0 if t in _se_wl else 1, t)):
-                _bcls = "badge-green" if _bt in _se_wl else "badge-blue"
-                _bsuf = " ★" if _bt in _se_wl else ""
-                _bhtml += f'<span class="badge {_bcls}" style="margin:3px 4px 3px 0;">{_bt}{_bsuf}</span>'
-            st.markdown(f'<div class="card" style="padding:14px 18px;">{_bhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
-
-    # Suggested action
-    st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
-    st.markdown(f'<div class="card" style="background:#f8f9fa;border-left:4px solid #000;"><div style="font-size:0.93rem;color:#000;font-weight:600;line-height:1.7;">{_sc_data["action"]}</div></div>', unsafe_allow_html=True)
+# Suggested action
+st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
+st.markdown(f'<div class="card" style="background:#f8f9fa;border-left:4px solid #000;"><div style="font-size:0.93rem;color:#000;font-weight:600;line-height:1.7;">{_sc_data["action"]}</div></div>', unsafe_allow_html=True)
