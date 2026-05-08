@@ -1359,9 +1359,9 @@ with tab1:
         st.rerun()
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 2 — Options Desk
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 2 — Options Desk
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab2:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#1a1a1a;margin:0 0 14px;">Options Desk</p>', unsafe_allow_html=True)
@@ -2011,9 +2011,9 @@ with tab2:
                 )
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 3 — Research
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 3 — Research
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab3:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#1a1a1a;margin:0 0 4px;">AI Stock Research</p>', unsafe_allow_html=True)
@@ -2074,9 +2074,9 @@ with tab3:
         st.markdown(st.session_state["_last_report"])
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 4 — Trade Log
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 4 — Trade Log
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab4:
     trades = _load_trades()
@@ -2169,9 +2169,9 @@ with tab4:
         st.dataframe(sty, use_container_width=True, hide_index=True)  # noqa
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 5 — Market Intel
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 5 — Market Intel
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab5:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 14px;">Market Intel</p>', unsafe_allow_html=True)
@@ -2273,9 +2273,9 @@ with tab5:
     st.markdown('<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Current Environment</div><div style="font-size:0.93rem;color:#000;line-height:1.75;">Fed on hold, watching inflation data closely. Next CPI: <b>May 13</b>. Next Fed meeting: <b>June 17–18</b>. Market is in data-dependent mode — strong jobs or sticky inflation could push the Fed to stay higher for longer. Monitor the SPY 200-day MA as the key bull/bear dividing line. Avoid buying options into any earnings on the schedule above.</div></div>', unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 8 — Congressional Trades
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 8 — Congressional Trades
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab8:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
@@ -2357,9 +2357,9 @@ with tab8:
             st.markdown(_ct_card(t), unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 6 — Stock Scorer
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 6 — Stock Scorer
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab6:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
@@ -2444,9 +2444,9 @@ with tab6:
     </div>""", unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tab 7 — Scenario Engine
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Tab 7 — Scenario Engine
+    # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab7:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
@@ -2464,10 +2464,10 @@ with tab7:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-# Summary
+    # Summary
     st.markdown(f'<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Scenario</div><div style="font-size:1.0rem;font-weight:700;color:#000;margin-bottom:6px;">{_se_scenario}</div><div style="font-size:0.92rem;color:#424242;line-height:1.7;">{_sc_data["summary"]}</div></div>', unsafe_allow_html=True)
 
-# Sector impact table
+    # Sector impact table
     st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
     _sec_html = ""
     for _sname, _simpact, _snote in _sc_data["sectors"]:
@@ -2487,7 +2487,7 @@ with tab7:
     )
     st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
 
-# Vulnerable / Benefiting columns
+    # Vulnerable / Benefiting columns
     _se_vc, _se_bc = st.columns(2)
 
     with _se_vc:
@@ -2516,6 +2516,6 @@ with tab7:
     else:
         st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
 
-# Suggested action
+    # Suggested action
     st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
     st.markdown(f'<div class="card" style="background:#f8f9fa;border-left:4px solid #000;"><div style="font-size:0.93rem;color:#000;font-weight:600;line-height:1.7;">{_sc_data["action"]}</div></div>', unsafe_allow_html=True)
