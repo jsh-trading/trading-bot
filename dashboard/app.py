@@ -2324,7 +2324,18 @@ with tab5:
   </div>
 </div>"""
 
-        _ct_your = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
+        # Apply filter to Your Tickers too
+        _ct_your_all = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
+        if _ct_filter == "Buys":
+            _ct_your = [t for t in _ct_your_all if "Purchase" in t.get("Transaction","")]
+        elif _ct_filter == "Sales":
+            _ct_your = [t for t in _ct_your_all if "Sale" in t.get("Transaction","")]
+        elif _ct_filter == "Senate":
+            _ct_your = [t for t in _ct_your_all if t.get("House","") == "Senate"]
+        elif _ct_filter == "House":
+            _ct_your = [t for t in _ct_your_all if t.get("House","") == "House"]
+        else:
+            _ct_your = _ct_your_all
         if _ct_your:
             st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
             for t in _ct_your[:5]:
