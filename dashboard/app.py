@@ -24,8 +24,6 @@ import json
 import pandas as pd
 import yfinance as yf
 import streamlit as st
-import warnings
-warnings.filterwarnings("ignore", message=".*use_container_width.*")
 import anthropic
 from streamlit_autorefresh import st_autorefresh
 
