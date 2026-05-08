@@ -2302,28 +2302,33 @@ with tab5:
         _ct_filter = st.radio("Filter", ["All", "Buys", "Sales", "Senate", "House"],
             horizontal=True, key="ct_filter", label_visibility="collapsed")
 
-        # Your tickers section
         _ct_watchlist = set(st.session_state.get("wl_tickers", []))
-        _ct_your = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
 
+        def _ct_card(t, border_color=None):
+            _tx   = t.get("Transaction", "")
+            _is_buy = "Purchase" in _tx
+            _color  = "#00c853" if _is_buy else "#ff1744"
+            _label  = "BUY" if _is_buy else "SALE"
+            _chamber = t.get("House", "")
+            _border = border_color or ("#00c853" if _is_buy else "#e0e0e0")
+            _in_wl  = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
+            return f"""<div style="background:#fff;border:1.5px solid {_border};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
+  <span style="background:{_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_label}</span>
+  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_chamber}</span>
+  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')} <span style="color:#999;font-weight:400;">· {t.get('Party','')}</span></div>
+  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
+    {_in_wl}💰 {t.get('Range','—')} &nbsp;·&nbsp;
+    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
+    📋 Disclosed: {t.get('ReportDate','—')}
+  </div>
+</div>"""
+
+        _ct_your = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
         if _ct_your:
             st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
             for t in _ct_your[:5]:
-                _ct_type = t.get("Transaction","")
-                _ct_color = "#00c853" if "Purchase" in _ct_type else "#ff1744"
-                _ct_label = "BUY" if "Purchase" in _ct_type else "SALE"
-                _ct_chamber = t.get("Chamber", "")
-                st.markdown(f"""<div style="background:#fff;border:1.5px solid {_ct_color};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
-  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
-  <span style="background:{_ct_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_ct_label}</span>
-  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_ct_chamber}</span>
-  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')}</div>
-  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
-    💰 {t.get('Range', t.get('Amount','—'))} &nbsp;·&nbsp;
-    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
-    📋 Disclosed: {t.get('DisclosureDate','—')}
-  </div>
-</div>""", unsafe_allow_html=True)
+                st.markdown(_ct_card(t, "#1565c0"), unsafe_allow_html=True)
 
         st.markdown("**📋 Full Feed** — All recent Senate & House disclosures")
 
@@ -2333,27 +2338,12 @@ with tab5:
         elif _ct_filter == "Sales":
             _ct_filtered = [t for t in _ct_data if "Sale" in t.get("Transaction","")]
         elif _ct_filter == "Senate":
-            _ct_filtered = [t for t in _ct_data if t.get("Chamber","") == "Senate"]
+            _ct_filtered = [t for t in _ct_data if t.get("House","") == "Senate"]
         elif _ct_filter == "House":
-            _ct_filtered = [t for t in _ct_data if t.get("Chamber","") == "House"]
+            _ct_filtered = [t for t in _ct_data if t.get("House","") == "House"]
 
-        for t in _ct_filtered[:20]:
-            _ct_type = t.get("Transaction","")
-            _ct_color = "#00c853" if "Purchase" in _ct_type else "#ff1744"
-            _ct_label = "BUY" if "Purchase" in _ct_type else "SALE"
-            _ct_chamber = t.get("Chamber", "")
-            _ct_in_wl = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
-            st.markdown(f"""<div style="background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 16px;margin-bottom:8px;">
-  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
-  <span style="background:{_ct_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_ct_label}</span>
-  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_ct_chamber}</span>
-  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')}</div>
-  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
-    {_ct_in_wl}💰 {t.get('Range', t.get('Amount','—'))} &nbsp;·&nbsp;
-    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
-    📋 Disclosed: {t.get('DisclosureDate','—')}
-  </div>
-</div>""", unsafe_allow_html=True)
+        for t in _ct_filtered[:25]:
+            st.markdown(_ct_card(t), unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
