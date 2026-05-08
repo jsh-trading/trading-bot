@@ -1706,6 +1706,46 @@ with tab2:
             )
             st.markdown(f'<div class="card"><span style="color:#aaa;">{_no_msg}</span></div>', unsafe_allow_html=True)
         else:
+            # ── Top 3 Buy / Watch / Skip ──────────────────────────────────
+            _buy   = [c for c, _ in _visible if c["signal"] >= 70][:3]
+            _watch = [c for c, _ in _visible if 50 <= c["signal"] < 70][:3]
+            _skip  = [c for c, _ in _visible if c["signal"] < 50][:3]
+
+            def _mini_card(c, color, label):
+                return f"""<div style="background:#fff;border:1.5px solid {color};border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+  <span style="font-weight:800;font-size:1rem;">{c['ticker']}</span>
+  <span style="background:{color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{label}</span>
+  <span style="float:right;font-weight:700;color:{color};">${c['cost']:.0f}</span>
+  <div style="color:#666;font-size:0.78rem;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
+</div>"""
+
+            st.markdown("### 🎯 Top Plays Today")
+            _t1, _t2, _t3 = st.columns(3)
+            with _t1:
+                st.markdown("**✅ Buy**")
+                if _buy:
+                    for c in _buy:
+                        st.markdown(_mini_card(c, "#00c853", "BUY"), unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="color:#aaa;font-size:0.85rem;">No high-confidence plays</div>', unsafe_allow_html=True)
+            with _t2:
+                st.markdown("**👀 Watch**")
+                if _watch:
+                    for c in _watch:
+                        st.markdown(_mini_card(c, "#ff9800", "WATCH"), unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="color:#aaa;font-size:0.85rem;">No watch setups</div>', unsafe_allow_html=True)
+            with _t3:
+                st.markdown("**⛔ Skip**")
+                if _skip:
+                    for c in _skip:
+                        st.markdown(_mini_card(c, "#ff1744", "SKIP"), unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="color:#aaa;font-size:0.85rem;">No skips today</div>', unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("### 📋 All Candidates")
+
             for c, _earn_date in _visible:
                 badge_cls  = "badge-green" if c["signal"] >= 70 else "badge-yellow"
                 source_cls = "badge-blue" if c["source"] == "Watchlist" else "badge-purple"
