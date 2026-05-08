@@ -1446,6 +1446,31 @@ with tab2:
                 live = _live_price(row["ticker"])
                 live_str = f"${live:.2f}" if live is not None else "—"
 
+                # Break-even = strike + entry for calls, strike - entry for puts.
+                # Color it green when the stock is already past break-even (good),
+                # red when it still has to move further to get there.
+                try:
+                    _is_call = "call" in str(row["type"]).lower()
+                    _be_val  = (
+                        float(row["strike"]) + float(row["entry_price"])
+                        if _is_call
+                        else float(row["strike"]) - float(row["entry_price"])
+                    )
+                    if live is not None and _be_val > 0 and live > 0:
+                        _past_be = (live >= _be_val) if _is_call else (live <= _be_val)
+                        _be_color = "#00c853" if _past_be else "#ff9800"
+                        if _past_be:
+                            _be_str = f"${_be_val:.2f}  ✓ past"
+                        else:
+                            _gap_pct = abs(_be_val - live) / live * 100
+                            _be_str  = f"${_be_val:.2f}  ({_gap_pct:.1f}% to go)"
+                    else:
+                        _be_color = "#1565c0"
+                        _be_str   = f"${_be_val:.2f}"
+                except Exception:
+                    _be_str   = "—"
+                    _be_color = "#888"
+
                 earn_warn = ""
                 _hard_sell_banner = ""
                 if row["earnings_date"]:
@@ -1610,6 +1635,7 @@ with tab2:
     {_field("Entry",     f"${row['entry_price']:.2f}")}
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
+    {_field("Break-even", _be_str, _be_color)}
   </div>
   <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}{_risk_html}
 </div>
