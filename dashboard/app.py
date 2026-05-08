@@ -1262,7 +1262,7 @@ with tab1:
 
         st.dataframe(
             df_scores.style
-            .apply(_style_signals_table, axis=1)
+            .apply(_style_signals_table, axis=1, use_container_width=True)
             .format({
                 "Buy Signal": "{:.1f}",
                 "Score":      "{}/100",
@@ -1289,7 +1289,7 @@ with tab1:
         st.markdown('<div class="card"><span style="color:#aaa;">No stocks passed all four filters today.</span></div>', unsafe_allow_html=True)
     else:
         st.dataframe(
-            df_screen.reset_index().rename(columns={"index": "Rank"}).style.format({
+            df_screen.reset_index(, use_container_width=True).rename(columns={"index": "Rank"}).style.format({
                 "Price":         "${:.2f}",
                 "RSI":           "{:.1f}",
                 "5d Change %":   "{:+.2f}%",
@@ -1928,7 +1928,7 @@ with tab2:
                         "Rating":     "—",
                     })
                 st.dataframe(
-                    pd.DataFrame(_sw_rows),
+                    pd.DataFrame(_sw_rows, use_container_width=True),
                     use_container_width=True,
                     hide_index=True,
                 )
