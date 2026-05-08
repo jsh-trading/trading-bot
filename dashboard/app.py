@@ -123,11 +123,25 @@ def _sb_delete(table: str, params: dict) -> None:
 def _load_setting(key: str, default: float) -> float:
     if _has_supabase:
         try:
-            rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
+            # If past upserts ever inserted duplicate rows (e.g. before we made
+            # _save_setting bulletproof), the row order in Supabase is NOT
+            # guaranteed. Order by id desc so we always pick the *most recent*
+            # write rather than a stale duplicate.
+            rows = _sb_get("app_settings", {
+                "key":    f"eq.{key}",
+                "select": "value",
+                "order":  "id.desc",
+            })
             if rows:
                 return float(rows[0]["value"])
-        except Exception:
-            pass
+        except Exception as _e:
+            # Order param may not work if `id` column missing — retry without it.
+            try:
+                rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
+                if rows:
+                    return float(rows[0]["value"])
+            except Exception as _e2:
+                print(f"[SB ERROR] _load_setting({key}) failed: {_e2}", flush=True)
     path = _BALANCE_PATH if key == "balance" else _BP_PATH
     try:
         return float(open(path).read().strip())
@@ -553,9 +567,17 @@ def _load_options_positions() -> pd.DataFrame:
     return df
 
 
-def _backup_positions():
-    if _has_supabase:
-        return  # Supabase is persistent — local JSON backup not needed
+def _backup_positions(force: bool = False):
+    """Write a JSON snapshot of all positions to disk.
+
+    Previously this returned early when Supabase was connected (assuming
+    Supabase was the source of truth). But if Supabase silently stops
+    persisting writes — e.g. a column is missing or a permission changes —
+    we end up with no recovery path. Setting force=True writes the backup
+    regardless, giving us a local-disk safety net.
+    """
+    if _has_supabase and not force:
+        return
     try:
         df = _load_options_positions()
         rows = df.to_dict(orient="records") if not df.empty else []
@@ -578,18 +600,40 @@ def _delete_options_position(pos_id: int):
 
 
 def _update_live_option_price(pos_id: int, price) -> None:
+    """Persist the user-entered live option price.
+
+    Failures are now surfaced (was silently caught before — which masked schema
+    issues like a missing live_option_price column in Supabase).
+    Always writes to local SQLite + JSON backup *in addition* to Supabase, so
+    we have a recovery path if Supabase ever stops persisting writes.
+    """
+    sb_ok = False
     if _has_supabase:
         try:
             _sb_patch("options_positions", {"id": f"eq.{pos_id}"}, {"live_option_price": price})
-            return
-        except Exception:
-            pass
-    with get_db_connection() as conn:
-        conn.execute(
-            "UPDATE options_positions SET live_option_price=? WHERE id=?",
-            (price, pos_id),
-        )
-    _backup_positions()
+            sb_ok = True
+            st.session_state["_last_save_ok"] = True
+        except Exception as _e:
+            print(f"[SB ERROR] _update_live_option_price(id={pos_id}, ${price}) failed: {_e}", flush=True)
+            st.session_state["_last_save_ok"] = False
+            try:
+                st.toast(
+                    f"⚠️ Couldn't save option price to Supabase (id {pos_id}) — falling back to local. See logs.",
+                    icon="⚠️",
+                )
+            except Exception:
+                pass
+    # Always also write SQLite + JSON backup. Cheap, and gives us a recovery
+    # path if Supabase silently stops persisting writes between reboots.
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                "UPDATE options_positions SET live_option_price=? WHERE id=?",
+                (price, pos_id),
+            )
+    except Exception as _e:
+        print(f"[SQLITE ERROR] live price update failed: {_e}", flush=True)
+    _backup_positions(force=True)
 
 
 def _update_options_position(pos_id: int, data: dict) -> None:
@@ -906,19 +950,36 @@ def _score_bar_html(val: int, color: str) -> str:
 # ── persistence helpers ───────────────────────────────────────────────────────
 
 def _save_setting(key: str, value: float) -> None:
+    """Persist a single setting (balance, buying_power, etc.) to Supabase.
+
+    Uses delete-then-insert rather than the previous merge-duplicates upsert,
+    which requires a UNIQUE constraint on `key`. If that constraint was missing,
+    the old code silently inserted duplicate rows on every save and reads
+    returned a stale row — producing the "balance reset on reboot" behaviour.
+
+    On any Supabase failure we surface a toast so the user knows the save
+    didn't persist (instead of failing silently into a local file that gets
+    wiped on Streamlit Cloud reboot).
+    """
     if _has_supabase:
         try:
-            # upsert via POST with Prefer: resolution=merge-duplicates
-            hdrs = {**_SB_HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"}
-            _requests.post(
-                _SB_URL + "app_settings",
-                headers=hdrs,
-                json={"key": key, "value": str(value)},
-                timeout=10,
-            ).raise_for_status()
+            # Wipe any existing rows for this key first (idempotent — fine if 0 rows).
+            try:
+                _sb_delete("app_settings", {"key": f"eq.{key}"})
+            except Exception:
+                pass
+            # Then insert one fresh row.
+            _sb_post("app_settings", {"key": key, "value": str(value)})
+            st.session_state["_last_save_ok"] = True
             return
-        except Exception:
-            pass
+        except Exception as _e:
+            print(f"[SB ERROR] _save_setting({key}={value}) failed: {_e}", flush=True)
+            st.session_state["_last_save_ok"] = False
+            try:
+                st.toast(f"⚠️ Couldn't save {key} to Supabase — check schema. See logs.", icon="⚠️")
+            except Exception:
+                pass
+    # Local-file fallback. NOT persistent on Streamlit Cloud — only useful in dev.
     path = _BALANCE_PATH if key == "balance" else _BP_PATH
     try:
         with open(path, "w") as f:
