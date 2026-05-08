@@ -1,4 +1,3 @@
-"""
 dashboard/app.py
 
 Light-themed trading dashboard — four tabs:
@@ -1459,8 +1458,9 @@ with tab2:
                     _pnl_d_str = "—"
                     _pnl_p_str = "—"
 
-                # Estimated Greeks
+                # Estimated Greeks + per-position Risk Score
                 _greeks_html = ""
+                _risk_html   = ""
                 try:
                     _dte_g = (datetime.strptime(str(row["expiry"]), "%Y-%m-%d").date() - today).days
                     if _dte_g > 0 and live is not None and float(row["strike"]) > 0 and float(row["entry_price"]) > 0:
@@ -1490,8 +1490,68 @@ with tab2:
                             + _gf("P(Profit)",f"{_pop:.0f}%",               _pc_pop)
                             + '</div></div>'
                         )
+
+                        # ── Per-position Risk Score (0–100) ───────────────────────
+                        # Factors (weights chosen to sum to 100):
+                        #   DTE risk        max 25   — lower DTE = higher risk
+                        #   Stop proximity  max 30   — closer to stop = higher risk
+                        #   IV risk         max 25   — higher IV  = higher risk
+                        #   Low P(Profit)   max 20   — lower POP  = higher risk
+                        _iv_pct_r     = _iv_est * 100
+                        _dte_risk_pts = round(max(0, min(25, 25 * (30 - _dte_g) / 30)))
+                        _iv_risk_pts  = round(max(0, min(25, 25 * (_iv_pct_r - 50) / 50)))
+                        _pop_risk_pts = round(max(0, min(20, 20 * (60 - _pop) / 60)))
+
+                        _stop_v  = float(row["stop_loss"]) if row["stop_loss"] else 0.0
+                        _entry_v = float(row["entry_price"])
+                        if _lop_valid and _stop_v > 0 and _entry_v > _stop_v:
+                            _buf            = max(0, min(1, (float(_lop) - _stop_v) / (_entry_v - _stop_v)))
+                            _stop_risk_pts  = round(30 * (1 - _buf))
+                            _stop_note      = f"{_buf*100:.0f}% buffer above stop"
+                        elif _stop_v <= 0:
+                            _stop_risk_pts  = 30   # no stop = HARD-rule violation, max out the sub-score
+                            _stop_note      = "no stop set — RULE VIOLATION"
+                        else:
+                            _stop_risk_pts  = 15   # neutral when live price unknown
+                            _stop_note      = "no live price"
+
+                        _pos_risk_score = max(0, min(100, _dte_risk_pts + _stop_risk_pts + _iv_risk_pts + _pop_risk_pts))
+                        _pos_risk_label = "Low"      if _pos_risk_score < 30 else ("Moderate" if _pos_risk_score < 60 else "Elevated")
+                        _pos_risk_color = "#00c853"  if _pos_risk_score < 30 else ("#ff9800"  if _pos_risk_score < 60 else "#ff1744")
+
+                        def _rrow(label, val, mx, note):
+                            _w = (val / mx) * 100 if mx else 0
+                            return (
+                                f'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:0.72rem;">'
+                                f'<div style="width:74px;color:#666;font-weight:600;">{label}</div>'
+                                f'<div style="flex:1;min-width:60px;background:#f2f2f2;border-radius:100px;height:5px;overflow:hidden;">'
+                                f'<div style="background:{_pos_risk_color};height:5px;width:{_w:.0f}%;"></div></div>'
+                                f'<div style="width:42px;text-align:right;color:#222;font-weight:700;">{val}/{mx}</div>'
+                                f'<div style="color:#999;font-size:0.68rem;">{note}</div></div>'
+                            )
+
+                        _risk_html = (
+                            '<div style="margin-top:12px;border-top:1px solid #f5f5f5;padding-top:10px;">'
+                            '<div style="display:flex;align-items:baseline;justify-content:space-between;">'
+                            '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.09em;'
+                            'font-weight:600;color:#bbb;">Risk Score</div>'
+                            f'<div><span style="font-size:1.25rem;font-weight:900;color:{_pos_risk_color};letter-spacing:-.02em;">{_pos_risk_score}/100</span>'
+                            f'<span style="margin-left:8px;font-size:0.78rem;font-weight:700;color:{_pos_risk_color};">{_pos_risk_label}</span></div>'
+                            '</div>'
+                            f'<div style="background:linear-gradient(to right,#00c853,#ffeb3b,#ff1744);'
+                            f'border-radius:100px;height:5px;margin-top:6px;position:relative;">'
+                            f'<div style="position:absolute;top:-3px;left:calc({_pos_risk_score}% - 5px);'
+                            f'width:11px;height:11px;background:#fff;border:2px solid {_pos_risk_color};border-radius:50%;'
+                            f'box-shadow:0 0 3px rgba(0,0,0,.2);"></div></div>'
+                            + _rrow("DTE",       _dte_risk_pts,  25, f"{_dte_g}d to expiry")
+                            + _rrow("Stop",      _stop_risk_pts, 30, _stop_note)
+                            + _rrow("IV",        _iv_risk_pts,   25, f"IV {_iv_pct_r:.0f}%")
+                            + _rrow("P(Profit)", _pop_risk_pts,  20, f"POP {_pop:.0f}%")
+                            + '</div>'
+                        )
                 except Exception:
                     _greeks_html = ""
+                    _risk_html   = ""
 
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
                 st.markdown(f"""
@@ -1510,7 +1570,7 @@ with tab2:
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
   </div>
-  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}
+  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}{_risk_html}
 </div>
 """, unsafe_allow_html=True)
 
