@@ -1921,6 +1921,27 @@ with tab2:
         st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#1a1a1a;margin:0 0 4px;">Sector Watch</p>', unsafe_allow_html=True)
         st.caption("Live prices per sector — IV%, Conviction, Catalyst and Rating are manually updated.")
 
+        with st.expander("📖 How to use Sector Watch with the Options Scanner"):
+            st.markdown("""
+**Morning workflow (9:15 AM)**
+
+1. **Check Sector Watch first** — scan each sector tab for tickers showing big % moves (green = up, red = down)
+2. **Spot the moving sector** — if Quantum is up across the board after an earnings reaction, that's your sector
+3. **Switch to Options Scanner** — use the Sector filter dropdown to select that sector
+4. **Hit Scan** — the scanner will score only tickers in that sector and show plays under $100
+5. **Check earnings dates** — the scanner auto-hides anything within 7 days of earnings
+6. **Enter at open or not at all** — post-earnings sector reactions must be bought within the first 30 minutes or the move is gone
+
+**What each column means**
+- **Change %** — today's move vs yesterday's close. Anything ±3% is worth watching
+- **IV%** — implied volatility (manually updated). Above 80% = elevated risk, above 100% = skip unless intentional
+- **Conviction** — your personal confidence level in the setup (manually updated)
+- **Catalyst** — the reason the sector is moving (earnings reaction, news, macro)
+- **Rating** — your overall grade for the setup (manually updated)
+
+**Key rule** — never chase a ticker that already moved 5%+ at open. The option has repriced and you are buying at the top.
+            """)
+
         _sw_sector_tabs = st.tabs(list(_SECTOR_WATCH.keys()))
         for _sw_tab, (_sw_sector, _sw_tickers) in zip(_sw_sector_tabs, _SECTOR_WATCH.items()):
             with _sw_tab:
