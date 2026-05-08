@@ -688,6 +688,55 @@ _init_db()
 
 # ── options scanner ───────────────────────────────────────────────────────────
 
+@st.cache_data(ttl=86400, show_spinner=False)  # listings change rarely — 24h cache
+def _is_optionable(ticker: str) -> bool:
+    """Return True if the ticker has any listed options on a major exchange.
+    yfinance returns an empty tuple for tickers without options (e.g. MAPS,
+    most penny stocks, OTC names) — that's our filter signal."""
+    try:
+        opts = yf.Ticker(ticker).options
+        return bool(opts) and len(opts) > 0
+    except Exception:
+        return False
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _live_call_premium(ticker: str, strike: float, target_expiry: str) -> float | None:
+    """Fetch the live ASK premium for a call from yfinance's options chain.
+
+    Snaps to the closest available expiry (yfinance only lists weeklies/monthlies)
+    and the closest available strike. Returns the ask, falling back to lastPrice
+    if ask is missing/zero. Returns None if the chain isn't available so the
+    caller can fall back to the 4%-of-stock-price estimate.
+    """
+    try:
+        t = yf.Ticker(ticker)
+        expiries = t.options or ()
+        if not expiries:
+            return None
+        target_dt = datetime.strptime(target_expiry, "%Y-%m-%d").date()
+        best_exp  = min(
+            expiries,
+            key=lambda e: abs((datetime.strptime(e, "%Y-%m-%d").date() - target_dt).days),
+        )
+        chain = t.option_chain(best_exp)
+        calls = chain.calls
+        if calls is None or calls.empty:
+            return None
+        # Snap to the closest available strike
+        idx = (calls["strike"] - strike).abs().idxmin()
+        row = calls.loc[idx]
+        ask  = float(row.get("ask",       0) or 0)
+        last = float(row.get("lastPrice", 0) or 0)
+        if ask > 0:
+            return round(ask, 2)
+        if last > 0:
+            return round(last, 2)
+        return None
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def _fetch_earnings_date(ticker: str):
     """Return the next earnings date as a date object, or None if unavailable."""
@@ -843,6 +892,12 @@ def _scan_options_candidates() -> list[dict]:
         if price <= 0:
             continue
 
+        # ── Filter: skip tickers with no listed options on a major exchange.
+        # This catches penny stocks like MAPS that show in the screener but
+        # aren't actually tradeable as options on Robinhood / IBKR / etc.
+        if not _is_optionable(ticker):
+            continue
+
         # Standard strike increments
         if price < 5:
             step = 0.50
@@ -856,30 +911,41 @@ def _scan_options_candidates() -> list[dict]:
         # One strike OTM from current price
         strike = round(round(price / step) * step + step, 2)
 
-        # Estimated premium: ~4% of stock price for ~35 DTE ATM+1 call
-        # Rounded to nearest $0.05 — matches typical options chain quoting
-        raw_premium = price * 0.04
-        premium = round(round(raw_premium / 0.05) * 0.05, 2)
-        # Contract cost = premium × 100 (one contract = 100 shares)
-        cost_per_contract = round(premium * 100, 2)
-
-        if cost_per_contract > 100:
-            continue  # only show plays ≤ $100 total outlay
-
         # Expiry ~35 days out, rolled to next Friday
         target_exp = date.today() + timedelta(days=35)
         days_to_fri = (4 - target_exp.weekday()) % 7
         expiry_date = target_exp + timedelta(days=days_to_fri)
 
+        # Try the live options chain first — that's what the user will actually
+        # pay on Robinhood. Fall back to the 4%-of-stock-price estimate only if
+        # the chain isn't reachable (yfinance flake, rate limit, etc.).
+        live_prem = _live_call_premium(ticker, strike, expiry_date.strftime("%Y-%m-%d"))
+        if live_prem is not None and live_prem > 0:
+            premium      = round(round(live_prem / 0.05) * 0.05, 2)
+            premium_src  = "live"
+        else:
+            raw_premium  = price * 0.04
+            premium      = round(round(raw_premium / 0.05) * 0.05, 2)
+            premium_src  = "est"
+
+        cost_per_contract = round(premium * 100, 2)
+
+        # Sanity gates
+        if cost_per_contract > 100:
+            continue  # over budget
+        if cost_per_contract < 5:
+            continue  # too cheap to be real — likely an estimation artifact / dead chain
+
         sig    = info["buy_signal"]
         source = info["source"]
         strength = "Strong" if sig >= 70 else ("Moderate" if sig >= 50 else "Speculative")
 
+        price_label = "live chain" if premium_src == "live" else "4%-rule est."
         thesis = (
             f"{strength} setup · {source} signal {sig:.0f}/100 · "
             f"RSI {info['rsi']:.0f} · {info['vol_ratio']:.1f}× avg volume. "
             f"Contract cost = ${cost_per_contract:.0f} "
-            f"(${premium:.2f} premium × 100 shares). "
+            f"(${premium:.2f} premium × 100 shares — {price_label}). "
             f"Target strike ${strike:.2f}, break-even ~${strike + premium:.2f}."
         )
 
@@ -894,6 +960,7 @@ def _scan_options_candidates() -> list[dict]:
             "thesis":      thesis,
             "source":      source,
             "hv":          info.get("hv", 30.0),
+            "premium_src": premium_src,
         })
 
     candidates.sort(key=lambda x: x["signal"], reverse=True)
