@@ -123,25 +123,13 @@ def _sb_delete(table: str, params: dict) -> None:
 def _load_setting(key: str, default: float) -> float:
     if _has_supabase:
         try:
-            # If past upserts ever inserted duplicate rows (e.g. before we made
-            # _save_setting bulletproof), the row order in Supabase is NOT
-            # guaranteed. Order by id desc so we always pick the *most recent*
-            # write rather than a stale duplicate.
-            rows = _sb_get("app_settings", {
-                "key":    f"eq.{key}",
-                "select": "value",
-                "order":  "id.desc",
-            })
+            # The new _save_setting (delete-then-insert) ensures only one row
+            # per key, so we don't need to disambiguate. Plain GET is enough.
+            rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
             if rows:
                 return float(rows[0]["value"])
         except Exception as _e:
-            # Order param may not work if `id` column missing — retry without it.
-            try:
-                rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
-                if rows:
-                    return float(rows[0]["value"])
-            except Exception as _e2:
-                print(f"[SB ERROR] _load_setting({key}) failed: {_e2}", flush=True)
+            print(f"[SB ERROR] _load_setting({key}) failed: {_e}", flush=True)
     path = _BALANCE_PATH if key == "balance" else _BP_PATH
     try:
         return float(open(path).read().strip())
