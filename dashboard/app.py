@@ -2274,6 +2274,89 @@ with tab5:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Congressional Trades (inside Market Intel)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+    st.divider()
+    st.markdown('<p style="font-size:1.0rem;font-weight:700;color:#000;margin:0 0 10px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
+    st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
+
+    @st.cache_data(ttl=3600)
+    def _fetch_congress_trades():
+        try:
+            import requests as _req
+            r = _req.get("https://api.quiverquant.com/beta/live/congresstrading",
+                headers={"accept": "application/json"}, timeout=10)
+            if r.status_code == 200:
+                return r.json()
+        except:
+            pass
+        return []
+
+    _ct_data = _fetch_congress_trades()
+
+    if not _ct_data:
+        st.markdown('<div class="card"><span style="color:#aaa;">Congressional trade data unavailable — API may require a free key at quiverquant.com</span></div>', unsafe_allow_html=True)
+    else:
+        # Filter buttons
+        _ct_filter = st.radio("Filter", ["All", "Buys", "Sales", "Senate", "House"],
+            horizontal=True, key="ct_filter", label_visibility="collapsed")
+
+        # Your tickers section
+        _ct_watchlist = set(st.session_state.get("wl_tickers", []))
+        _ct_your = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
+
+        if _ct_your:
+            st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
+            for t in _ct_your[:5]:
+                _ct_type = t.get("Transaction","")
+                _ct_color = "#00c853" if "Purchase" in _ct_type else "#ff1744"
+                _ct_label = "BUY" if "Purchase" in _ct_type else "SALE"
+                _ct_chamber = t.get("Chamber", "")
+                st.markdown(f"""<div style="background:#fff;border:1.5px solid {_ct_color};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
+  <span style="background:{_ct_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_ct_label}</span>
+  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_ct_chamber}</span>
+  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')}</div>
+  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
+    💰 {t.get('Range', t.get('Amount','—'))} &nbsp;·&nbsp;
+    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
+    📋 Disclosed: {t.get('DisclosureDate','—')}
+  </div>
+</div>""", unsafe_allow_html=True)
+
+        st.markdown("**📋 Full Feed** — All recent Senate & House disclosures")
+
+        _ct_filtered = _ct_data
+        if _ct_filter == "Buys":
+            _ct_filtered = [t for t in _ct_data if "Purchase" in t.get("Transaction","")]
+        elif _ct_filter == "Sales":
+            _ct_filtered = [t for t in _ct_data if "Sale" in t.get("Transaction","")]
+        elif _ct_filter == "Senate":
+            _ct_filtered = [t for t in _ct_data if t.get("Chamber","") == "Senate"]
+        elif _ct_filter == "House":
+            _ct_filtered = [t for t in _ct_data if t.get("Chamber","") == "House"]
+
+        for t in _ct_filtered[:20]:
+            _ct_type = t.get("Transaction","")
+            _ct_color = "#00c853" if "Purchase" in _ct_type else "#ff1744"
+            _ct_label = "BUY" if "Purchase" in _ct_type else "SALE"
+            _ct_chamber = t.get("Chamber", "")
+            _ct_in_wl = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
+            st.markdown(f"""<div style="background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
+  <span style="background:{_ct_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_ct_label}</span>
+  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_ct_chamber}</span>
+  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')}</div>
+  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
+    {_ct_in_wl}💰 {t.get('Range', t.get('Amount','—'))} &nbsp;·&nbsp;
+    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
+    📋 Disclosed: {t.get('DisclosureDate','—')}
+  </div>
+</div>""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Tab 6 — Stock Scorer
 # ═══════════════════════════════════════════════════════════════════════════════
 
