@@ -1494,24 +1494,24 @@ with tab2:
 
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
                 st.markdown(f"""
-<div class="options-card">
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div class="options-card">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <span class="ticker">{row['ticker']}</span>
     <span class="badge {type_cls}">{row['type']}</span>
     <span class="badge {status_cls}">{row['status']}</span>{_ew_inline}
     <span style="margin-left:auto;color:#ccc;font-size:0.78rem;">#{_pos_num}</span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:14px;">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:14px;">
     {_field("Strike",    f"${row['strike']:.2f}")}
     {_field("Expiry",    row['expiry'])}
     {_field("Qty",       f"{int(row['qty'])} contract{'s' if row['qty']!=1 else ''}")}
     {_field("Entry",     f"${row['entry_price']:.2f}")}
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
-  </div>
-  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}
-</div>
-""", unsafe_allow_html=True)
+      </div>
+      <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}
+    </div>
+    """, unsafe_allow_html=True)
 
                 # Current Option $ input + P&L — visually connected to card
                 _lop_key = f"live_opt_{int(row['id'])}"
@@ -1713,11 +1713,11 @@ with tab2:
 
             def _mini_card(c, color, label):
                 return f"""<div style="background:#fff;border:1.5px solid {color};border-radius:10px;padding:10px 14px;margin-bottom:8px;">
-  <span style="font-weight:800;font-size:1rem;">{c['ticker']}</span>
-  <span style="background:{color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{label}</span>
-  <span style="float:right;font-weight:700;color:{color};">${c['cost']:.0f}</span>
-  <div style="color:#666;font-size:0.78rem;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
-</div>"""
+      <span style="font-weight:800;font-size:1rem;">{c['ticker']}</span>
+      <span style="background:{color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{label}</span>
+      <span style="float:right;font-weight:700;color:{color};">${c['cost']:.0f}</span>
+      <div style="color:#666;font-size:0.78rem;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
+    </div>"""
 
             st.markdown("### 🎯 Top Plays Today")
             _t1, _t2, _t3 = st.columns(3)
@@ -1761,15 +1761,15 @@ with tab2:
                 _header_extras = (" " + _iv_badge if _iv_badge else "")
 
                 st.markdown(f"""
-<div class="options-card">
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div class="options-card">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <span class="ticker">{c['ticker']}</span>
     <span class="badge {badge_cls}">Signal {c['signal']:.0f}</span>
     <span class="badge badge-blue">Long Call</span>
     <span class="badge {source_cls}">{c['source']}</span>{_header_extras}
     <span style="margin-left:auto;font-size:1.15rem;font-weight:800;color:#00c853;">${c['cost']:.0f}</span><span style="color:#aaa;font-size:0.78rem;"> total / contract</span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
     {_field("Stock Price",      f"${c['stock_price']:.2f}")}
     {_field("Suggested Strike", f"${c['strike']:.2f}")}
     {_field("Expiry (~35 DTE)", c['expiry'])}
@@ -1777,10 +1777,10 @@ with tab2:
     {_field("Contract Cost",    f"${c['cost']:.0f}  (premium × 100)")}
     {_field("Break-even",       f"${c['strike'] + c['premium']:.2f}")}
     {_field("Earnings",         _earn_field)}
-  </div>
-  <div class="thesis">{c['thesis']}</div>
-</div>
-""", unsafe_allow_html=True)
+      </div>
+      <div class="thesis">{c['thesis']}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
         if _earn_hidden > 0:
             st.caption(
@@ -1923,13 +1923,13 @@ with tab2:
                     _iv_extra = f'<div style="margin-top:8px;padding:8px 12px;background:#fff3e0;border-radius:8px;color:#e65100;font-weight:600;font-size:0.85rem;">⚠️ Elevated historical vol ({r["hv_pct"]:.1f}%) — premiums are expensive. Size position down.</div>'
 
                 st.markdown(f"""
-<div class="options-card">
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div class="options-card">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <span class="ticker">{r['ticker']}</span>
     <span class="badge badge-blue">Long Call · {r['dte']}d</span>
     <span class="badge {cost_cls}">{cost_lbl}</span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
     {_field("Stock Price",   f"${r['price']:.2f}")}
     {_field("Strike",        f"${r['strike']:.2f}")}
     {_field("Expiry",        r['expiry'])}
@@ -1938,10 +1938,10 @@ with tab2:
     {_field("Est. Premium",  f"${r['premium']:.2f} / share")}
     {_field("Contract Cost", f"${r['cost']:.0f}  (premium × 100)", "#00c853" if cost_ok else "#ff1744")}
     {_field("Break-even",    f"${r['breakeven']:.2f}")}
-  </div>
-  <div style="margin-top:12px;padding:8px 12px;background:{_earn_bg};border-radius:8px;color:{_earn_fg};font-weight:600;font-size:0.85rem;">{_earn_txt}</div>{_iv_extra}
-</div>
-""", unsafe_allow_html=True)
+      </div>
+      <div style="margin-top:12px;padding:8px 12px;background:{_earn_bg};border-radius:8px;color:{_earn_fg};font-weight:600;font-size:0.85rem;">{_earn_txt}</div>{_iv_extra}
+    </div>
+    """, unsafe_allow_html=True)
 
 
     # ────────────────────────────────────────────────────────────────────────
@@ -1963,23 +1963,23 @@ with tab2:
 
         with st.expander("📖 How to use Sector Watch with the Options Scanner"):
             st.markdown("""
-**Morning workflow (9:15 AM)**
+    **Morning workflow (9:15 AM)**
 
-1. **Check Sector Watch first** — scan each sector tab for tickers showing big % moves (green = up, red = down)
-2. **Spot the moving sector** — if Quantum is up across the board after an earnings reaction, that's your sector
-3. **Switch to Options Scanner** — use the Sector filter dropdown to select that sector
-4. **Hit Scan** — the scanner will score only tickers in that sector and show plays under $100
-5. **Check earnings dates** — the scanner auto-hides anything within 7 days of earnings
-6. **Enter at open or not at all** — post-earnings sector reactions must be bought within the first 30 minutes or the move is gone
+    1. **Check Sector Watch first** — scan each sector tab for tickers showing big % moves (green = up, red = down)
+    2. **Spot the moving sector** — if Quantum is up across the board after an earnings reaction, that's your sector
+    3. **Switch to Options Scanner** — use the Sector filter dropdown to select that sector
+    4. **Hit Scan** — the scanner will score only tickers in that sector and show plays under $100
+    5. **Check earnings dates** — the scanner auto-hides anything within 7 days of earnings
+    6. **Enter at open or not at all** — post-earnings sector reactions must be bought within the first 30 minutes or the move is gone
 
-**What each column means**
-- **Change %** — today's move vs yesterday's close. Anything ±3% is worth watching
-- **IV%** — implied volatility (manually updated). Above 80% = elevated risk, above 100% = skip unless intentional
-- **Conviction** — your personal confidence level in the setup (manually updated)
-- **Catalyst** — the reason the sector is moving (earnings reaction, news, macro)
-- **Rating** — your overall grade for the setup (manually updated)
+    **What each column means**
+    - **Change %** — today's move vs yesterday's close. Anything ±3% is worth watching
+    - **IV%** — implied volatility (manually updated). Above 80% = elevated risk, above 100% = skip unless intentional
+    - **Conviction** — your personal confidence level in the setup (manually updated)
+    - **Catalyst** — the reason the sector is moving (earnings reaction, news, macro)
+    - **Rating** — your overall grade for the setup (manually updated)
 
-**Key rule** — never chase a ticker that already moved 5%+ at open. The option has repriced and you are buying at the top.
+    **Key rule** — never chase a ticker that already moved 5%+ at open. The option has repriced and you are buying at the top.
             """)
 
         _sw_sector_tabs = st.tabs(list(_SECTOR_WATCH.keys()))
@@ -2362,15 +2362,15 @@ with tab8:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab6:
-st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
-st.caption("Opportunity, risk, and volatility scores derived from signal strength, RSI position, and volume ratio.")
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
+    st.caption("Opportunity, risk, and volatility scores derived from signal strength, RSI position, and volume ratio.")
 
-with st.spinner("Scoring watchlist…"):
+    with st.spinner("Scoring watchlist…"):
     _ss_df = _scored_stocks()
 
-if _ss_df.empty:
+    if _ss_df.empty:
     st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
-else:
+    else:
     _ss_rows = []
     for _, _r in _ss_df.iterrows():
         _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
@@ -2426,22 +2426,22 @@ else:
                 _vbar = _score_bar_html(_sr["volsc"], "#1565c0")
                 _risk_col = "#ff1744" if _sr["risk"] > 60 else "#000"
                 st.markdown(f"""
-<div class="options-card">
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-<span class="ticker">{_sr['ticker']}</span>
-<span style="color:#999;font-size:0.85rem;font-weight:600;">${_sr['price']:.2f}</span>
-<span class="badge {_sr['rcls']}" style="margin-left:auto;">{_sr['rtg']}</span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-{_field("Opportunity", str(_sr['opp']) + "/100")}
-{_field("Risk", str(_sr['risk']) + "/100", _risk_col)}
-{_field("Vol Activity", str(_sr['volsc']) + "/100")}
-  </div>
-  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:3px;">Opportunity</div>{_obar}
-  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Risk</div>{_rbar}
-  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Volume Activity</div>{_vbar}
-  <div style="margin-top:12px;padding:6px 10px;background:#f8f9fa;border-radius:8px;font-size:0.82rem;font-weight:700;color:{_sr['zcol']};text-align:center;">{_sr['zone']}</div>
-</div>""", unsafe_allow_html=True)
+    <div class="options-card">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <span class="ticker">{_sr['ticker']}</span>
+    <span style="color:#999;font-size:0.85rem;font-weight:600;">${_sr['price']:.2f}</span>
+    <span class="badge {_sr['rcls']}" style="margin-left:auto;">{_sr['rtg']}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+    {_field("Opportunity", str(_sr['opp']) + "/100")}
+    {_field("Risk", str(_sr['risk']) + "/100", _risk_col)}
+    {_field("Vol Activity", str(_sr['volsc']) + "/100")}
+      </div>
+      <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:3px;">Opportunity</div>{_obar}
+      <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Risk</div>{_rbar}
+      <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Volume Activity</div>{_vbar}
+      <div style="margin-top:12px;padding:6px 10px;background:#f8f9fa;border-radius:8px;font-size:0.82rem;font-weight:700;color:{_sr['zcol']};text-align:center;">{_sr['zone']}</div>
+    </div>""", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2449,28 +2449,28 @@ else:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab7:
-st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
-st.caption("Select a macro scenario to see projected sector impacts and which watchlist tickers are affected.")
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
+    st.caption("Select a macro scenario to see projected sector impacts and which watchlist tickers are affected.")
 
-_se_scenario = st.selectbox(
+    _se_scenario = st.selectbox(
     "Select scenario",
     list(_SCENARIOS.keys()),
     key="se_scenario_sel",
     label_visibility="collapsed",
-)
+    )
 
-_sc_data = _SCENARIOS[_se_scenario]
-_se_wl   = set(st.session_state.wl_tickers)
+    _sc_data = _SCENARIOS[_se_scenario]
+    _se_wl   = set(st.session_state.wl_tickers)
 
-st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
 # Summary
-st.markdown(f'<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Scenario</div><div style="font-size:1.0rem;font-weight:700;color:#000;margin-bottom:6px;">{_se_scenario}</div><div style="font-size:0.92rem;color:#424242;line-height:1.7;">{_sc_data["summary"]}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Scenario</div><div style="font-size:1.0rem;font-weight:700;color:#000;margin-bottom:6px;">{_se_scenario}</div><div style="font-size:0.92rem;color:#424242;line-height:1.7;">{_sc_data["summary"]}</div></div>', unsafe_allow_html=True)
 
 # Sector impact table
-st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
-_sec_html = ""
-for _sname, _simpact, _snote in _sc_data["sectors"]:
+    st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
+    _sec_html = ""
+    for _sname, _simpact, _snote in _sc_data["sectors"]:
     if _simpact == "positive":
         _scolor, _sicon = "#00c853", "↑ Positive"
     elif _simpact == "negative":
@@ -2485,12 +2485,12 @@ for _sname, _simpact, _snote in _sc_data["sectors"]:
         f'<div style="color:#424242;font-size:0.82rem;line-height:1.5;">{_snote}</div>'
         f'</div>'
     )
-st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
 
 # Vulnerable / Benefiting columns
-_se_vc, _se_bc = st.columns(2)
+    _se_vc, _se_bc = st.columns(2)
 
-with _se_vc:
+    with _se_vc:
     st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
     _vuln = _sc_data["vulnerable"]
     if _vuln:
@@ -2503,7 +2503,7 @@ with _se_vc:
     else:
         st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
 
-with _se_bc:
+    with _se_bc:
     st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
     _bene = _sc_data["benefiting"]
     if _bene:
@@ -2517,5 +2517,5 @@ with _se_bc:
         st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
 
 # Suggested action
-st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
-st.markdown(f'<div class="card" style="background:#f8f9fa;border-left:4px solid #000;"><div style="font-size:0.93rem;color:#000;font-weight:600;line-height:1.7;">{_sc_data["action"]}</div></div>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card" style="background:#f8f9fa;border-left:4px solid #000;"><div style="font-size:0.93rem;color:#000;font-weight:600;line-height:1.7;">{_sc_data["action"]}</div></div>', unsafe_allow_html=True)
