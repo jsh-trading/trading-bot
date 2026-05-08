@@ -2278,83 +2278,83 @@ with tab5:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab8:
-st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
-st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
+    st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
 
-@st.cache_data(ttl=3600)
-def _fetch_congress_trades():
-    try:
-        import requests as _req
-        r = _req.get("https://api.quiverquant.com/beta/live/congresstrading",
-            headers={"accept": "application/json"}, timeout=10)
-        if r.status_code == 200:
-            return r.json()
-    except:
-        pass
-    return []
+    @st.cache_data(ttl=3600)
+    def _fetch_congress_trades():
+        try:
+            import requests as _req
+            r = _req.get("https://api.quiverquant.com/beta/live/congresstrading",
+                headers={"accept": "application/json"}, timeout=10)
+            if r.status_code == 200:
+                return r.json()
+        except:
+            pass
+        return []
 
-_ct_data = _fetch_congress_trades()
+    _ct_data = _fetch_congress_trades()
 
-if not _ct_data:
-    st.markdown('<div class="card"><span style="color:#aaa;">Congressional trade data unavailable — API may require a free key at quiverquant.com</span></div>', unsafe_allow_html=True)
-else:
-    # Filter buttons
-    _ct_filter = st.radio("Filter", ["All", "Buys", "Sales", "Senate", "House"],
-        horizontal=True, key="ct_filter", label_visibility="collapsed")
-
-    _ct_watchlist = set(st.session_state.get("wl_tickers", []))
-
-    def _ct_card(t, border_color=None):
-        _tx   = t.get("Transaction", "")
-        _is_buy = "Purchase" in _tx
-        _color  = "#00c853" if _is_buy else "#ff1744"
-        _label  = "BUY" if _is_buy else "SALE"
-        _chamber = t.get("House", "")
-        _border = border_color or ("#00c853" if _is_buy else "#e0e0e0")
-        _in_wl  = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
-        return f"""<div style="background:#fff;border:1.5px solid {_border};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
-  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
-  <span style="background:{_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_label}</span>
-  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_chamber}</span>
-  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')} <span style="color:#999;font-weight:400;">· {t.get('Party','')}</span></div>
-  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
-{_in_wl}💰 {t.get('Range','—')} &nbsp;·&nbsp;
-📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
-📋 Disclosed: {t.get('ReportDate','—')}
-  </div>
-</div>"""
-
-    # Apply filter to Your Tickers too
-    _ct_your_all = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
-    if _ct_filter == "Buys":
-        _ct_your = [t for t in _ct_your_all if "Purchase" in t.get("Transaction","")]
-    elif _ct_filter == "Sales":
-        _ct_your = [t for t in _ct_your_all if "Sale" in t.get("Transaction","")]
-    elif _ct_filter == "Senate":
-        _ct_your = [t for t in _ct_your_all if t.get("House","") == "Senate"]
-    elif _ct_filter == "House":
-        _ct_your = [t for t in _ct_your_all if t.get("House","") in ("House", "Representatives")]
+    if not _ct_data:
+        st.markdown('<div class="card"><span style="color:#aaa;">Congressional trade data unavailable — API may require a free key at quiverquant.com</span></div>', unsafe_allow_html=True)
     else:
-        _ct_your = _ct_your_all
-    if _ct_your:
-        st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
-        for t in _ct_your[:5]:
-            st.markdown(_ct_card(t, "#1565c0"), unsafe_allow_html=True)
+        # Filter buttons
+        _ct_filter = st.radio("Filter", ["All", "Buys", "Sales", "Senate", "House"],
+            horizontal=True, key="ct_filter", label_visibility="collapsed")
 
-    st.markdown("**📋 Full Feed** — All recent Senate & House disclosures")
+        _ct_watchlist = set(st.session_state.get("wl_tickers", []))
 
-    _ct_filtered = _ct_data
-    if _ct_filter == "Buys":
-        _ct_filtered = [t for t in _ct_data if "Purchase" in t.get("Transaction","")]
-    elif _ct_filter == "Sales":
-        _ct_filtered = [t for t in _ct_data if "Sale" in t.get("Transaction","")]
-    elif _ct_filter == "Senate":
-        _ct_filtered = [t for t in _ct_data if t.get("House","") == "Senate"]
-    elif _ct_filter == "House":
-        _ct_filtered = [t for t in _ct_data if t.get("House","") in ("House", "Representatives")]
+        def _ct_card(t, border_color=None):
+            _tx   = t.get("Transaction", "")
+            _is_buy = "Purchase" in _tx
+            _color  = "#00c853" if _is_buy else "#ff1744"
+            _label  = "BUY" if _is_buy else "SALE"
+            _chamber = t.get("House", "")
+            _border = border_color or ("#00c853" if _is_buy else "#e0e0e0")
+            _in_wl  = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
+            return f"""<div style="background:#fff;border:1.5px solid {_border};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+      <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
+      <span style="background:{_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_label}</span>
+      <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_chamber}</span>
+      <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')} <span style="color:#999;font-weight:400;">· {t.get('Party','')}</span></div>
+      <div style="color:#666;font-size:0.78rem;margin-top:2px;">
+    {_in_wl}💰 {t.get('Range','—')} &nbsp;·&nbsp;
+    📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
+    📋 Disclosed: {t.get('ReportDate','—')}
+      </div>
+    </div>"""
 
-    for t in _ct_filtered[:25]:
-        st.markdown(_ct_card(t), unsafe_allow_html=True)
+        # Apply filter to Your Tickers too
+        _ct_your_all = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
+        if _ct_filter == "Buys":
+            _ct_your = [t for t in _ct_your_all if "Purchase" in t.get("Transaction","")]
+        elif _ct_filter == "Sales":
+            _ct_your = [t for t in _ct_your_all if "Sale" in t.get("Transaction","")]
+        elif _ct_filter == "Senate":
+            _ct_your = [t for t in _ct_your_all if t.get("House","") == "Senate"]
+        elif _ct_filter == "House":
+            _ct_your = [t for t in _ct_your_all if t.get("House","") in ("House", "Representatives")]
+        else:
+            _ct_your = _ct_your_all
+        if _ct_your:
+            st.markdown("**⭐ Your Tickers** — Congressional trades on stocks you're watching")
+            for t in _ct_your[:5]:
+                st.markdown(_ct_card(t, "#1565c0"), unsafe_allow_html=True)
+
+        st.markdown("**📋 Full Feed** — All recent Senate & House disclosures")
+
+        _ct_filtered = _ct_data
+        if _ct_filter == "Buys":
+            _ct_filtered = [t for t in _ct_data if "Purchase" in t.get("Transaction","")]
+        elif _ct_filter == "Sales":
+            _ct_filtered = [t for t in _ct_data if "Sale" in t.get("Transaction","")]
+        elif _ct_filter == "Senate":
+            _ct_filtered = [t for t in _ct_data if t.get("House","") == "Senate"]
+        elif _ct_filter == "House":
+            _ct_filtered = [t for t in _ct_data if t.get("House","") in ("House", "Representatives")]
+
+        for t in _ct_filtered[:25]:
+            st.markdown(_ct_card(t), unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
