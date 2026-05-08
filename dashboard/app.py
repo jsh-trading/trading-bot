@@ -1,3 +1,4 @@
+"""
 dashboard/app.py
 
 Light-themed trading dashboard — four tabs:
