@@ -1217,6 +1217,7 @@ tab2, tab1, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🌍  Market Intel",
     "🎯  Stock Scorer",
     "⚡  Scenario Engine",
+    "🏛️  Congress",
 ])
 
 
