@@ -1209,7 +1209,7 @@ elif 15 * 60 + 30 <= _now_mins < 16 * 60:
     )
 
 # ── tabs (Options Desk is first / default) ────────────────────────────────────
-tab2, tab1, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab2, tab1, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "⚡  Options Desk",
     "📊  Signals",
     "🔍  Research",
@@ -2274,11 +2274,11 @@ with tab5:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Congressional Trades (inside Market Intel)
+# Tab 8 — Congressional Trades
 # ═══════════════════════════════════════════════════════════════════════════════
 
-    st.divider()
-    st.markdown('<p style="font-size:1.0rem;font-weight:700;color:#000;margin:0 0 10px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
+with tab8:
+    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
     st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
 
     @st.cache_data(ttl=3600)
