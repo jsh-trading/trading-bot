@@ -1646,6 +1646,19 @@ with tab2:
             '</p>',
             unsafe_allow_html=True,
         )
+        SECTORS = {
+            "All": [],
+            "Quantum":       ["RGTI","QBTS","QUBT","IONQ"],
+            "Defense AI":    ["BBAI","PLTR"],
+            "Space":         ["RKLB","ASTS","LUNR"],
+            "Chips":         ["AMD","NVDA","MU","SMCI"],
+            "Crypto":        ["MARA","RIOT","COIN"],
+            "Momentum":      ["SNAP","SOFI","DKNG","TOST","INTC","RBLX"],
+            "eVTOL":         ["ACHR","JOBY"],
+            "Cybersecurity": ["CRWD","S","PANW"],
+        }
+        _sector = st.selectbox("Sector filter", list(SECTORS.keys()), key="sector_filter")
+
         if st.button("↺ Scan", use_container_width=False, key="scan_options"):
             _scan_options_candidates.clear()
             st.rerun()
@@ -1678,6 +1691,11 @@ with tab2:
                         _move_hidden += 1
                         continue
             _visible.append((c, _ed))
+
+        # Sector filter
+        _sector_tickers = SECTORS.get(_sector, [])
+        if _sector_tickers:
+            _visible = [(c, ed) for c, ed in _visible if c["ticker"] in _sector_tickers]
 
         if not _visible:
             _no_msg = (
