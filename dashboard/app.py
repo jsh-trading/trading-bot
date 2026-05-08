@@ -8,7 +8,7 @@ Light-themed trading dashboard — four tabs:
   4. Trade Log        — SQLite-backed trade journal
 
 Run:
-    streamlit run dashboard/app.py
+        streamlit run dashboard/app.py
 """
 
 import os
@@ -29,11 +29,11 @@ from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
 for _log in ("yfinance", "yfinance.base", "urllib3"):
-    logging.getLogger(_log).setLevel(logging.CRITICAL)
+        logging.getLogger(_log).setLevel(logging.CRITICAL)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+        sys.path.insert(0, _ROOT)
 
 from signals.indicators import get_all_indicators
 from signals.scorer import score_stock, _ml_confidence, _ML_MODEL
@@ -75,7 +75,7 @@ _has_supabase = (
 )
 
 if _has_supabase:
-    _SB_URL = st.secrets["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
+        _SB_URL = st.secrets["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
     _SB_KEY = st.secrets["SUPABASE_KEY"]
     _SB_HEADERS = {
         "apikey":        _SB_KEY,
@@ -85,12 +85,12 @@ if _has_supabase:
     }
     st.sidebar.success("✅ Supabase connected")
 else:
-    _SB_URL = _SB_KEY = _SB_HEADERS = None
+        _SB_URL = _SB_KEY = _SB_HEADERS = None
     st.sidebar.warning("⚠️ Using local SQLite — positions will reset on reboot.")
 
 
 def _sb_get(table: str, params: dict | None = None) -> list:
-    r = _requests.get(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+        r = _requests.get(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] GET {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
@@ -98,7 +98,7 @@ def _sb_get(table: str, params: dict | None = None) -> list:
 
 
 def _sb_post(table: str, payload: dict) -> dict:
-    r = _requests.post(_SB_URL + table, headers=_SB_HEADERS, json=payload, timeout=10)
+        r = _requests.post(_SB_URL + table, headers=_SB_HEADERS, json=payload, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] POST {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
@@ -107,21 +107,21 @@ def _sb_post(table: str, payload: dict) -> dict:
 
 
 def _sb_patch(table: str, params: dict, payload: dict) -> None:
-    r = _requests.patch(_SB_URL + table, headers=_SB_HEADERS, params=params, json=payload, timeout=10)
+        r = _requests.patch(_SB_URL + table, headers=_SB_HEADERS, params=params, json=payload, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] PATCH {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
 
 
 def _sb_delete(table: str, params: dict) -> None:
-    r = _requests.delete(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+        r = _requests.delete(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] DELETE {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
 
 
 def _load_setting(key: str, default: float) -> float:
-    if _has_supabase:
+        if _has_supabase:
         try:
             rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
             if rows:
@@ -300,7 +300,7 @@ st.markdown("""
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _scored_stocks() -> pd.DataFrame:
-    all_data = get_all_indicators()
+        all_data = get_all_indicators()
     rows = []
     for ticker, df in all_data.items():
         score, _ = score_stock(df)
@@ -329,13 +329,13 @@ def _scored_stocks() -> pd.DataFrame:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _screener_results() -> pd.DataFrame:
-    data = download_universe_data()
+        data = download_universe_data()
     return screen_stocks(data)
 
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _live_price(ticker: str) -> float | None:
-    try:
+        try:
         hist = yf.Ticker(ticker).history(period="1d")
         if not hist.empty:
             return round(float(hist["Close"].iloc[-1]), 2)
@@ -346,7 +346,7 @@ def _live_price(ticker: str) -> float | None:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _prev_close(ticker: str) -> float | None:
-    try:
+        try:
         hist = yf.Ticker(ticker).history(period="5d")
         if len(hist) >= 2:
             return round(float(hist["Close"].iloc[-2]), 2)
@@ -360,7 +360,7 @@ _STRIP_TICKERS = [("SPY", "SPY"), ("QQQ", "QQQ"), ("VIX", "^VIX"), ("BTC", "BTC-
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _fetch_ticker_strip() -> list:
-    out = []
+        out = []
     for label, sym in _STRIP_TICKERS:
         price = _live_price(sym)
         prev  = _prev_close(sym)
@@ -371,7 +371,7 @@ def _fetch_ticker_strip() -> list:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _fetch_market_data() -> dict:
-    """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
+        """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
     out = {"vix": None, "spy_price": None, "spy_ma200": None, "spy_rsi": None}
     try:
         vix_h = yf.Ticker("^VIX").history(period="2d")
@@ -401,13 +401,13 @@ def _fetch_market_data() -> dict:
 # ── db connection ─────────────────────────────────────────────────────────────
 
 def get_db_connection():
-    return sqlite3.connect(DB_PATH)
+        return sqlite3.connect(DB_PATH)
 
 
 # ── trade log helpers ─────────────────────────────────────────────────────────
 
 def _init_db():
-    with get_db_connection() as conn:
+        with get_db_connection() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -475,7 +475,7 @@ def _init_db():
 
 
 def _save_trade(ticker, trade_date, entry, exit_price, notes):
-    with get_db_connection() as conn:
+        with get_db_connection() as conn:
         conn.execute(
             "INSERT INTO trades (ticker, trade_date, entry_price, exit_price, notes) "
             "VALUES (?, ?, ?, ?, ?)",
@@ -486,7 +486,7 @@ def _save_trade(ticker, trade_date, entry, exit_price, notes):
 
 
 def _load_trades() -> pd.DataFrame:
-    with get_db_connection() as conn:
+        with get_db_connection() as conn:
         df = pd.read_sql_query(
             "SELECT id, ticker, trade_date, entry_price, exit_price, notes "
             "FROM trades ORDER BY trade_date DESC, id DESC", conn)
@@ -499,7 +499,7 @@ def _load_trades() -> pd.DataFrame:
 
 
 def _save_options_position(data: dict):
-    if _has_supabase:
+        if _has_supabase:
         try:
             result = _sb_post("options_positions", {
                 "ticker":        data["ticker"],
@@ -540,7 +540,7 @@ def _save_options_position(data: dict):
 
 
 def _load_options_positions() -> pd.DataFrame:
-    if _has_supabase:
+        if _has_supabase:
         try:
             rows = _sb_get("options_positions", {"order": "created_at.desc"})
             if rows is not None:  # empty list is valid — Supabase reachable, zero rows
@@ -554,7 +554,7 @@ def _load_options_positions() -> pd.DataFrame:
 
 
 def _backup_positions():
-    if _has_supabase:
+        if _has_supabase:
         return  # Supabase is persistent — local JSON backup not needed
     try:
         df = _load_options_positions()
@@ -566,7 +566,7 @@ def _backup_positions():
 
 
 def _delete_options_position(pos_id: int):
-    if _has_supabase:
+        if _has_supabase:
         try:
             _sb_delete("options_positions", {"id": f"eq.{pos_id}"})
             return
@@ -578,7 +578,7 @@ def _delete_options_position(pos_id: int):
 
 
 def _update_live_option_price(pos_id: int, price) -> None:
-    if _has_supabase:
+        if _has_supabase:
         try:
             _sb_patch("options_positions", {"id": f"eq.{pos_id}"}, {"live_option_price": price})
             return
@@ -593,7 +593,7 @@ def _update_live_option_price(pos_id: int, price) -> None:
 
 
 def _on_live_opt_change(pos_id: int, key: str) -> None:
-    val = st.session_state.get(key)
+        val = st.session_state.get(key)
     try:
         price = float(val) if val is not None and float(val) > 0 else None
     except Exception:
@@ -608,7 +608,7 @@ _init_db()
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _fetch_earnings_date(ticker: str):
-    """Return the next earnings date as a date object, or None if unavailable."""
+        """Return the next earnings date as a date object, or None if unavailable."""
     try:
         cal = yf.Ticker(ticker).calendar
         if cal is None:
@@ -634,11 +634,11 @@ def _fetch_earnings_date(ticker: str):
 
 
 def _norm_cdf(x: float) -> float:
-    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+        return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
 
 def _bs_call(S: float, K: float, T: float, r: float, sigma: float) -> float:
-    """Black-Scholes price for a European call option."""
+        """Black-Scholes price for a European call option."""
     if T <= 0 or sigma <= 0 or S <= 0:
         return max(S - K, 0.0)
     sqT = math.sqrt(T)
@@ -648,7 +648,7 @@ def _bs_call(S: float, K: float, T: float, r: float, sigma: float) -> float:
 
 
 def _evaluate_play(ticker: str, strike: float, expiry_date: date) -> dict:
-    """Fetch live data and compute Black-Scholes estimate for a specific options play."""
+        """Fetch live data and compute Black-Scholes estimate for a specific options play."""
     try:
         hist = yf.Ticker(ticker).history(period="3mo")
         if hist.empty:
@@ -689,7 +689,7 @@ def _evaluate_play(ticker: str, strike: float, expiry_date: date) -> dict:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _scan_options_candidates() -> list[dict]:
-    """
+        """
     Combines watchlist (full scorer) + screener universe (momentum filters)
     to find call option plays under $100/contract.
     """
@@ -821,7 +821,7 @@ def _scan_options_candidates() -> list[dict]:
 # ── styling helpers ───────────────────────────────────────────────────────────
 
 def _style_signals_table(row):
-    sig = row["Buy Signal"]
+        sig = row["Buy Signal"]
     anchor = sig if pd.notna(sig) else row["Score"]
     if anchor >= 70:
         bg = "background-color:#e8f5e9; color:#1b5e20"
@@ -837,7 +837,7 @@ def _style_signals_table(row):
 
 
 def metric_card(label: str, value: str, sub: str = "", cls: str = "") -> str:
-    sub_html = f'<div class="sub {cls}">{sub}</div>' if sub else ""
+        sub_html = f'<div class="sub {cls}">{sub}</div>' if sub else ""
     return f"""
 <div class="metric-card">
   <div class="label">{label}</div>
@@ -849,7 +849,7 @@ def metric_card(label: str, value: str, sub: str = "", cls: str = "") -> str:
 # ── field label helper ────────────────────────────────────────────────────────
 
 def _field(label: str, value: str, color: str = "#000000") -> str:
-    return (
+        return (
         f'<div>'
         f'<div style="color:#999;font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">{label}</div>'
         f'<div style="color:{color};font-weight:700;font-size:0.95rem;">{value}</div>'
@@ -858,7 +858,7 @@ def _field(label: str, value: str, color: str = "#000000") -> str:
 
 
 def _score_bar_html(val: int, color: str) -> str:
-    return (
+        return (
         f'<div style="background:#f2f2f2;border-radius:100px;height:5px;overflow:hidden;">'
         f'<div style="background:{color};border-radius:100px;height:5px;width:{val}%;"></div>'
         f'</div>'
@@ -868,7 +868,7 @@ def _score_bar_html(val: int, color: str) -> str:
 # ── persistence helpers ───────────────────────────────────────────────────────
 
 def _save_setting(key: str, value: float) -> None:
-    if _has_supabase:
+        if _has_supabase:
         try:
             # upsert via POST with Prefer: resolution=merge-duplicates
             hdrs = {**_SB_HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"}
@@ -890,15 +890,15 @@ def _save_setting(key: str, value: float) -> None:
 
 
 def _save_balance(balance: float) -> None:
-    _save_setting("balance", balance)
+        _save_setting("balance", balance)
 
 
 def _save_buying_power(bp: float) -> None:
-    _save_setting("buying_power", bp)
+        _save_setting("buying_power", bp)
 
 
 def _save_watchlist(tickers: list) -> None:
-    path = os.path.join(_ROOT, "data", "watchlist.py")
+        path = os.path.join(_ROOT, "data", "watchlist.py")
     with open(path, "w") as f:
         f.write("# watchlist.py\n")
         f.write("# Fundamentally strong stocks, all priced under $75.\n")
@@ -995,7 +995,7 @@ _SCENARIOS: dict = {
 # ── session state init ────────────────────────────────────────────────────────
 
 if "wl_tickers" not in st.session_state:
-    from data.watchlist import WATCHLIST as _WL_INIT
+        from data.watchlist import WATCHLIST as _WL_INIT
     st.session_state.wl_tickers = list(_WL_INIT)
 
 
@@ -1018,7 +1018,7 @@ st.markdown(
 _strip_data = _fetch_ticker_strip()
 _strip_parts = []
 for _si in _strip_data:
-    _sp = f"${_si['price']:,.2f}" if _si["price"] else "—"
+        _sp = f"${_si['price']:,.2f}" if _si["price"] else "—"
     if _si["pct"] is not None:
         _sc = "#00e676" if _si["pct"] >= 0 else "#ff5252"
         _spct = f'<span style="color:{_sc}">{_si["pct"]:+.2f}%</span>'
@@ -1062,7 +1062,7 @@ _risk_color     = "#00c853" if _risk_score < 30 else ("#ff9800" if _risk_score <
 _pos_badges_html = ""
 _today_ch = date.today()
 for _, _pr in _open_pos_df.iterrows():
-    try:
+        try:
         _exp_d  = datetime.strptime(str(_pr["expiry"]), "%Y-%m-%d").date()
         _dte_ch = (_exp_d - _today_ch).days
         _dte_s  = f"{_dte_ch}d"
@@ -1074,7 +1074,7 @@ for _, _pr in _open_pos_df.iterrows():
         f'{_pr["ticker"]} <span style="color:#aaa;font-weight:400;">${float(_pr["strike"]):.0f} · {_dte_s}</span></span>'
     )
 if not _pos_badges_html:
-    _pos_badges_html = '<span style="color:#aaa;font-size:0.8rem;">No open positions</span>'
+        _pos_badges_html = '<span style="color:#aaa;font-size:0.8rem;">No open positions</span>'
 
 # — risk gradient marker bar —
 _risk_bar_html = (
@@ -1087,7 +1087,7 @@ _risk_bar_html = (
 
 _ch_tracker_col, _ch_btn_col = st.columns([11, 1])
 with _ch_tracker_col:
-    st.markdown(
+        st.markdown(
         '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:6px;">'
 
         # Card 1 — Total Value
@@ -1136,7 +1136,7 @@ with _ch_tracker_col:
         unsafe_allow_html=True,
     )
 with _ch_btn_col:
-    st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
     if st.button("✏️", key="ch_edit_btn", help="Update balance / buying power", use_container_width=True):
         st.session_state["ch_editing"] = not st.session_state.get("ch_editing", False)
 
@@ -1165,7 +1165,7 @@ st.markdown(
 )
 
 if st.session_state.get("ch_editing", False):
-    _bv1, _bv2, _bv3, _bv4 = st.columns([3, 3, 1, 4])
+        _bv1, _bv2, _bv3, _bv4 = st.columns([3, 3, 1, 4])
     _new_bal = _bv1.number_input(
         "Balance ($)",
         value=float(CHALLENGE_CURRENT),
@@ -1192,7 +1192,7 @@ if st.session_state.get("ch_editing", False):
 _h, _m = now_et.hour, now_et.minute
 _now_mins = _h * 60 + _m
 if 9 * 60 <= _now_mins < 9 * 60 + 45:
-    st.markdown(
+        st.markdown(
         '<div style="background:#e8f5e9;border:1.5px solid #00c853;border-radius:10px;'
         'padding:10px 16px;margin-bottom:10px;font-size:0.9rem;font-weight:600;color:#1b5e20;">'
         '🟢 MORNING SESSION — Check positions, run scanner, set alerts before 9:30 open.'
@@ -1200,7 +1200,7 @@ if 9 * 60 <= _now_mins < 9 * 60 + 45:
         unsafe_allow_html=True,
     )
 elif 15 * 60 + 30 <= _now_mins < 16 * 60:
-    st.markdown(
+        st.markdown(
         '<div style="background:#fffde7;border:1.5px solid #f9a825;border-radius:10px;'
         'padding:10px 16px;margin-bottom:10px;font-size:0.9rem;font-weight:600;color:#e65100;">'
         '🟡 EOD SESSION — Update SAIL price, update balance, review any open positions before close.'
@@ -2366,12 +2366,12 @@ with tab6:
     st.caption("Opportunity, risk, and volatility scores derived from signal strength, RSI position, and volume ratio.")
 
     with st.spinner("Scoring watchlist…"):
-    _ss_df = _scored_stocks()
+        _ss_df = _scored_stocks()
 
     if _ss_df.empty:
-    st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
     else:
-    _ss_rows = []
+        _ss_rows = []
     for _, _r in _ss_df.iterrows():
         _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
         _sig  = float(_r["Buy Signal"]) if pd.notna(_r["Buy Signal"]) else 0.0
@@ -2471,7 +2471,7 @@ with tab7:
     st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Sector Impact</p>', unsafe_allow_html=True)
     _sec_html = ""
     for _sname, _simpact, _snote in _sc_data["sectors"]:
-    if _simpact == "positive":
+        if _simpact == "positive":
         _scolor, _sicon = "#00c853", "↑ Positive"
     elif _simpact == "negative":
         _scolor, _sicon = "#ff1744", "↓ Negative"
@@ -2491,7 +2491,7 @@ with tab7:
     _se_vc, _se_bc = st.columns(2)
 
     with _se_vc:
-    st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
+        st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
     _vuln = _sc_data["vulnerable"]
     if _vuln:
         _vhtml = ""
@@ -2504,7 +2504,7 @@ with tab7:
         st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
 
     with _se_bc:
-    st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
+        st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
     _bene = _sc_data["benefiting"]
     if _bene:
         _bhtml = ""
