@@ -2333,7 +2333,7 @@ with tab5:
         elif _ct_filter == "Senate":
             _ct_your = [t for t in _ct_your_all if t.get("House","") == "Senate"]
         elif _ct_filter == "House":
-            _ct_your = [t for t in _ct_your_all if t.get("House","") == "House"]
+            _ct_your = [t for t in _ct_your_all if t.get("House","") in ("House", "Representatives")]
         else:
             _ct_your = _ct_your_all
         if _ct_your:
@@ -2351,7 +2351,7 @@ with tab5:
         elif _ct_filter == "Senate":
             _ct_filtered = [t for t in _ct_data if t.get("House","") == "Senate"]
         elif _ct_filter == "House":
-            _ct_filtered = [t for t in _ct_data if t.get("House","") == "House"]
+            _ct_filtered = [t for t in _ct_data if t.get("House","") in ("House", "Representatives")]
 
         for t in _ct_filtered[:25]:
             st.markdown(_ct_card(t), unsafe_allow_html=True)
