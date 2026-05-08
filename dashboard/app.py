@@ -592,6 +592,44 @@ def _update_live_option_price(pos_id: int, price) -> None:
     _backup_positions()
 
 
+def _update_options_position(pos_id: int, data: dict) -> None:
+    """Update editable fields on an existing position. Mirrors _save_options_position
+    for the user-editable columns (status/created_at/live_option_price untouched)."""
+    payload = {
+        "ticker":        data["ticker"],
+        "type":          data["type"],
+        "expiry":        data["expiry"],
+        "earnings_date": data.get("earnings_date"),
+        "strike":        data["strike"],
+        "qty":           data["qty"],
+        "entry_price":   data["entry_price"],
+        "stop_loss":     data.get("stop_loss"),
+        "target1":       data.get("target1"),
+        "target2":       data.get("target2"),
+        "target3":       data.get("target3"),
+        "notes":         data.get("notes"),
+    }
+    if _has_supabase:
+        try:
+            _sb_patch("options_positions", {"id": f"eq.{pos_id}"}, payload)
+            return
+        except Exception as _e:
+            print(f"[SB ERROR] _update_options_position failed: {_e}", flush=True)
+    with get_db_connection() as conn:
+        conn.execute("""
+            UPDATE options_positions
+               SET ticker=?, type=?, expiry=?, earnings_date=?, strike=?, qty=?,
+                   entry_price=?, stop_loss=?, target1=?, target2=?, target3=?, notes=?
+             WHERE id=?
+        """, (
+            payload["ticker"], payload["type"], payload["expiry"], payload["earnings_date"],
+            payload["strike"], payload["qty"], payload["entry_price"],
+            payload["stop_loss"], payload["target1"], payload["target2"], payload["target3"],
+            payload["notes"], pos_id,
+        ))
+    _backup_positions()
+
+
 def _on_live_opt_change(pos_id: int, key: str) -> None:
     val = st.session_state.get(key)
     try:
@@ -1040,15 +1078,17 @@ st.markdown(
 # ── challenge tracker (5-card layout) ────────────────────────────────────────
 
 # — pre-compute all values —
-_ch_pct_overall = min(1.0, (CHALLENGE_CURRENT - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START))
+# % to goal uses the simple "current / goal" reading (e.g. $325 / $1,000 = 32.5%)
+# rather than "% of the gap from start to goal" (which read low and felt off).
+_ch_pct_overall = min(1.0, max(0.0, CHALLENGE_CURRENT / CHALLENGE_GOAL)) if CHALLENGE_GOAL > 0 else 0.0
 _ch_gain        = CHALLENGE_CURRENT - CHALLENGE_START
 _ch_ret_pct     = (_ch_gain / CHALLENGE_START) * 100
 _ch_gain_color  = "#00c853" if _ch_gain >= 0 else "#ff1744"
 _ch_gain_sign   = "+" if _ch_gain >= 0 else ""
 _ch_prog_w      = f"{_ch_pct_overall * 100:.1f}"
 _max_trade      = round(BUYING_POWER * 0.50)
-_m1_pct         = (400 - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START) * 100
-_m2_pct         = (700 - CHALLENGE_START) / (CHALLENGE_GOAL - CHALLENGE_START) * 100
+_m1_pct         = (400 / CHALLENGE_GOAL) * 100 if CHALLENGE_GOAL > 0 else 0
+_m2_pct         = (700 / CHALLENGE_GOAL) * 100 if CHALLENGE_GOAL > 0 else 0
 
 _tracker_pos_df = _load_options_positions()
 _open_pos_df    = _tracker_pos_df[_tracker_pos_df["status"] == "Open"] if not _tracker_pos_df.empty else pd.DataFrame()
@@ -1616,9 +1656,136 @@ with tab2:
                             unsafe_allow_html=True,
                         )
 
-                if st.button(f"🗑 Remove #{_pos_num}", key=f"del_{_pos_num}"):
-                    _delete_options_position(int(row["id"]))
-                    st.rerun()
+                _pid      = int(row["id"])
+                _edit_key = f"editing_pos_{_pid}"
+                _btn_e, _btn_r = st.columns(2)
+                with _btn_e:
+                    if st.button(f"✏️ Edit #{_pos_num}", key=f"edit_{_pos_num}", use_container_width=True):
+                        st.session_state[_edit_key] = not st.session_state.get(_edit_key, False)
+                        st.rerun()
+                with _btn_r:
+                    if st.button(f"🗑 Remove #{_pos_num}", key=f"del_{_pos_num}", use_container_width=True):
+                        _delete_options_position(_pid)
+                        st.rerun()
+
+                # ── Inline edit form (shown only when this position is being edited) ──
+                if st.session_state.get(_edit_key, False):
+                    def _safe_date(v):
+                        if v is None:
+                            return None
+                        s = str(v).strip()
+                        if s.lower() in ("", "none", "nan", "nat"):
+                            return None
+                        try:
+                            return datetime.strptime(s, "%Y-%m-%d").date()
+                        except Exception:
+                            return None
+
+                    def _safe_float(v):
+                        try:
+                            f = float(v)
+                            return f if f > 0 else 0.0
+                        except Exception:
+                            return 0.0
+
+                    def _safe_str(v):
+                        if v is None:
+                            return ""
+                        s = str(v).strip()
+                        return "" if s.lower() in ("nan", "none") else s
+
+                    _exp_val  = _safe_date(row["expiry"]) or date.today()
+                    _earn_val = _safe_date(row.get("earnings_date"))
+
+                    st.markdown(
+                        f'<p style="font-size:0.95rem;font-weight:700;color:#1565c0;margin:14px 0 8px;">'
+                        f'✏️ Edit Position #{_pos_num} — {row["ticker"]}</p>',
+                        unsafe_allow_html=True,
+                    )
+
+                    with st.form(f"edit_position_{_pid}_form", clear_on_submit=False):
+                        ec1, ec2, ec3 = st.columns(3)
+                        ef_ticker = ec1.text_input("Ticker *", value=str(row["ticker"]), key=f"ef_tk_{_pid}")
+                        ef_type   = ec2.selectbox(
+                            "Type *", ["Long Call", "Long Put"],
+                            index=0 if str(row["type"]) == "Long Call" else 1,
+                            key=f"ef_ty_{_pid}",
+                        )
+                        ef_expiry = ec3.date_input("Expiry *", value=_exp_val, key=f"ef_ex_{_pid}")
+
+                        ec4, ec5, ec6 = st.columns(3)
+                        ef_earnings = ec4.date_input("Earnings Date", value=_earn_val, key=f"ef_er_{_pid}")
+                        ef_strike   = ec5.number_input(
+                            "Strike ($) *", min_value=0.01, step=0.5, format="%.2f",
+                            value=float(row["strike"]), key=f"ef_st_{_pid}",
+                        )
+                        ef_qty      = ec6.number_input(
+                            "Qty (contracts) *", min_value=1, step=1,
+                            value=int(row["qty"]), key=f"ef_qt_{_pid}",
+                        )
+
+                        ec7, ec8, ec9 = st.columns(3)
+                        ef_entry = ec7.number_input(
+                            "Entry Price ($) *", min_value=0.01, step=0.01, format="%.2f",
+                            value=float(row["entry_price"]), key=f"ef_en_{_pid}",
+                        )
+                        ef_stop  = ec8.number_input(
+                            "Stop Loss ($)", min_value=0.0, step=0.01, format="%.2f",
+                            value=_safe_float(row.get("stop_loss")), key=f"ef_sl_{_pid}",
+                        )
+                        ef_t1    = ec9.number_input(
+                            "Target 1 ($)", min_value=0.0, step=0.01, format="%.2f",
+                            value=_safe_float(row.get("target1")), key=f"ef_t1_{_pid}",
+                        )
+
+                        ec10, ec11 = st.columns(2)
+                        ef_t2 = ec10.number_input(
+                            "Target 2 ($)", min_value=0.0, step=0.01, format="%.2f",
+                            value=_safe_float(row.get("target2")), key=f"ef_t2_{_pid}",
+                        )
+                        ef_t3 = ec11.number_input(
+                            "Target 3 ($)", min_value=0.0, step=0.01, format="%.2f",
+                            value=_safe_float(row.get("target3")), key=f"ef_t3_{_pid}",
+                        )
+
+                        ef_notes = st.text_area(
+                            "Notes (optional)",
+                            value=_safe_str(row.get("notes")),
+                            placeholder="Optional: entry reason, setup notes...",
+                            height=80,
+                            key=f"ef_no_{_pid}",
+                        )
+
+                        es1, es2 = st.columns(2)
+                        with es1:
+                            save_edit = st.form_submit_button("💾  Save Changes", use_container_width=True)
+                        with es2:
+                            cancel_edit = st.form_submit_button("✖  Cancel", use_container_width=True)
+
+                    if save_edit:
+                        if not ef_ticker.strip():
+                            st.error("Ticker is required.")
+                        else:
+                            _update_options_position(_pid, {
+                                "ticker":        ef_ticker.strip().upper(),
+                                "type":          ef_type,
+                                "expiry":        str(ef_expiry),
+                                "earnings_date": str(ef_earnings) if ef_earnings else None,
+                                "strike":        float(ef_strike),
+                                "qty":           int(ef_qty),
+                                "entry_price":   float(ef_entry),
+                                "stop_loss":     float(ef_stop) if ef_stop > 0 else None,
+                                "target1":       float(ef_t1)   if ef_t1   > 0 else None,
+                                "target2":       float(ef_t2)   if ef_t2   > 0 else None,
+                                "target3":       float(ef_t3)   if ef_t3   > 0 else None,
+                                "notes":         ef_notes.strip() or None,
+                            })
+                            st.session_state[_edit_key] = False
+                            st.success(f"✅ Updated — {ef_ticker.upper()} ${ef_strike:.2f} {ef_type}")
+                            st.rerun()
+                    elif cancel_edit:
+                        st.session_state[_edit_key] = False
+                        st.rerun()
 
         st.divider()
         st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#1a1a1a;margin:0 0 10px;">Add Position</p>', unsafe_allow_html=True)
@@ -1643,6 +1810,19 @@ with tab2:
             f_t2 = r4c1.number_input("Target 2 ($)", min_value=0.0, step=0.01, format="%.2f", value=0.0)
             f_t3 = r4c2.number_input("Target 3 ($)", min_value=0.0, step=0.01, format="%.2f", value=0.0)
 
+            # Live-computed Break-even = Strike + Entry. Inside a form the value
+            # only refreshes after submit, but seeing it on the prior submit's
+            # values is still useful — and it's always computed correctly on save.
+            _be_preview = float(f_strike or 0) + float(f_entry or 0)
+            st.markdown(
+                f'<div style="background:#f5f8ff;border:1px solid #d6e4ff;border-radius:8px;'
+                f'padding:8px 12px;margin-top:4px;font-size:0.82rem;color:#1565c0;">'
+                f'<b>Break-even:</b> ${_be_preview:.2f} '
+                f'<span style="color:#666;font-weight:400;">(Strike + Entry — stock must close at or above this at expiry to profit)</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
             f_pos_notes = st.text_area("Notes (optional)", placeholder="Optional: entry reason, setup notes...", height=80, key="pos_notes_input")
 
             save_pos = st.form_submit_button("💾  Save Position", use_container_width=True)
@@ -1665,7 +1845,10 @@ with tab2:
                     "target3":       float(f_t3) if f_t3 > 0 else None,
                     "notes":         f_pos_notes.strip() or None,
                 })
-                st.success(f"✅ Saved — {f_ticker.upper()} ${f_strike:.2f} {f_type} exp {f_expiry}")
+                st.success(
+                    f"✅ Saved — {f_ticker.upper()} ${f_strike:.2f} {f_type} exp {f_expiry}  ·  "
+                    f"Break-even ${float(f_strike) + float(f_entry):.2f}"
+                )
                 st.rerun()
 
     # ────────────────────────────────────────────────────────────────────────
@@ -1778,7 +1961,7 @@ with tab2:
   <span style="font-weight:800;font-size:1rem;">{c['ticker']}</span>
   <span style="background:{color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{label}</span>
   <span style="float:right;font-weight:700;color:{color};">${c['cost']:.0f}</span>
-  <div style="color:#666;font-size:0.78rem;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
+  <div style="color:#424242;font-size:0.8rem;font-weight:500;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
 </div>"""
 
             st.markdown("### 🎯 Top Plays Today")
@@ -2053,21 +2236,39 @@ with tab2:
                     _sw_prev  = _prev_close(_sw_t)
                     if _sw_price and _sw_prev and _sw_prev != 0:
                         _sw_chg = (_sw_price - _sw_prev) / _sw_prev * 100
-                        _sw_chg_str = f"{_sw_chg:+.2f}%"
                     else:
-                        _sw_chg_str = "—"
+                        _sw_chg = None
                     _sw_rows.append({
                         "Ticker":     _sw_t,
-                        "Price":      f"${_sw_price:.2f}" if _sw_price else "—",
-                        "Change %":   _sw_chg_str,
+                        "Price":      _sw_price if _sw_price else None,
+                        "Change %":   _sw_chg,
                         "IV%":        "—",
                         "Conviction": "—",
                         "Earnings":   "—",
                         "Catalyst":   "—",
                         "Rating":     "—",
                     })
+                _sw_df = pd.DataFrame(_sw_rows)
+
+                def _color_chg(v):
+                    if pd.isna(v):
+                        return ""
+                    if v > 0:
+                        return "color:#00c853;font-weight:700"
+                    if v < 0:
+                        return "color:#ff1744;font-weight:700"
+                    return ""
+
+                _sw_styled = (
+                    _sw_df.style
+                    .applymap(_color_chg, subset=["Change %"])
+                    .format({
+                        "Price":    lambda v: f"${v:.2f}" if pd.notna(v) else "—",
+                        "Change %": lambda v: f"{v:+.2f}%" if pd.notna(v) else "—",
+                    })
+                )
                 st.dataframe(
-                    pd.DataFrame(_sw_rows),
+                    _sw_styled,
                     use_container_width=True,
                     hide_index=True,
                 )
