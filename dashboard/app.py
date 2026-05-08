@@ -8,7 +8,7 @@ Light-themed trading dashboard — four tabs:
   4. Trade Log        — SQLite-backed trade journal
 
 Run:
-        streamlit run dashboard/app.py
+    streamlit run dashboard/app.py
 """
 
 import os
@@ -29,11 +29,11 @@ from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
 for _log in ("yfinance", "yfinance.base", "urllib3"):
-        logging.getLogger(_log).setLevel(logging.CRITICAL)
+    logging.getLogger(_log).setLevel(logging.CRITICAL)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
-        sys.path.insert(0, _ROOT)
+    sys.path.insert(0, _ROOT)
 
 from signals.indicators import get_all_indicators
 from signals.scorer import score_stock, _ml_confidence, _ML_MODEL
@@ -75,7 +75,7 @@ _has_supabase = (
 )
 
 if _has_supabase:
-        _SB_URL = st.secrets["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
+    _SB_URL = st.secrets["SUPABASE_URL"].rstrip("/") + "/rest/v1/"
     _SB_KEY = st.secrets["SUPABASE_KEY"]
     _SB_HEADERS = {
         "apikey":        _SB_KEY,
@@ -85,12 +85,12 @@ if _has_supabase:
     }
     st.sidebar.success("✅ Supabase connected")
 else:
-        _SB_URL = _SB_KEY = _SB_HEADERS = None
+    _SB_URL = _SB_KEY = _SB_HEADERS = None
     st.sidebar.warning("⚠️ Using local SQLite — positions will reset on reboot.")
 
 
 def _sb_get(table: str, params: dict | None = None) -> list:
-        r = _requests.get(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+    r = _requests.get(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] GET {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
@@ -98,7 +98,7 @@ def _sb_get(table: str, params: dict | None = None) -> list:
 
 
 def _sb_post(table: str, payload: dict) -> dict:
-        r = _requests.post(_SB_URL + table, headers=_SB_HEADERS, json=payload, timeout=10)
+    r = _requests.post(_SB_URL + table, headers=_SB_HEADERS, json=payload, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] POST {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
@@ -107,21 +107,21 @@ def _sb_post(table: str, payload: dict) -> dict:
 
 
 def _sb_patch(table: str, params: dict, payload: dict) -> None:
-        r = _requests.patch(_SB_URL + table, headers=_SB_HEADERS, params=params, json=payload, timeout=10)
+    r = _requests.patch(_SB_URL + table, headers=_SB_HEADERS, params=params, json=payload, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] PATCH {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
 
 
 def _sb_delete(table: str, params: dict) -> None:
-        r = _requests.delete(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
+    r = _requests.delete(_SB_URL + table, headers=_SB_HEADERS, params=params, timeout=10)
     if not r.ok:
         print(f"[SB ERROR] DELETE {table} → {r.status_code}: {r.text}", flush=True)
     r.raise_for_status()
 
 
 def _load_setting(key: str, default: float) -> float:
-        if _has_supabase:
+    if _has_supabase:
         try:
             rows = _sb_get("app_settings", {"key": f"eq.{key}", "select": "value"})
             if rows:
@@ -300,7 +300,7 @@ st.markdown("""
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _scored_stocks() -> pd.DataFrame:
-        all_data = get_all_indicators()
+    all_data = get_all_indicators()
     rows = []
     for ticker, df in all_data.items():
         score, _ = score_stock(df)
@@ -329,13 +329,13 @@ def _scored_stocks() -> pd.DataFrame:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _screener_results() -> pd.DataFrame:
-        data = download_universe_data()
+    data = download_universe_data()
     return screen_stocks(data)
 
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _live_price(ticker: str) -> float | None:
-        try:
+    try:
         hist = yf.Ticker(ticker).history(period="1d")
         if not hist.empty:
             return round(float(hist["Close"].iloc[-1]), 2)
@@ -346,7 +346,7 @@ def _live_price(ticker: str) -> float | None:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _prev_close(ticker: str) -> float | None:
-        try:
+    try:
         hist = yf.Ticker(ticker).history(period="5d")
         if len(hist) >= 2:
             return round(float(hist["Close"].iloc[-2]), 2)
@@ -360,7 +360,7 @@ _STRIP_TICKERS = [("SPY", "SPY"), ("QQQ", "QQQ"), ("VIX", "^VIX"), ("BTC", "BTC-
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _fetch_ticker_strip() -> list:
-        out = []
+    out = []
     for label, sym in _STRIP_TICKERS:
         price = _live_price(sym)
         prev  = _prev_close(sym)
@@ -371,7 +371,7 @@ def _fetch_ticker_strip() -> list:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _fetch_market_data() -> dict:
-        """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
+    """Fetch VIX level and SPY price / 200-day MA / RSI for Market Intel tab."""
     out = {"vix": None, "spy_price": None, "spy_ma200": None, "spy_rsi": None}
     try:
         vix_h = yf.Ticker("^VIX").history(period="2d")
@@ -401,13 +401,13 @@ def _fetch_market_data() -> dict:
 # ── db connection ─────────────────────────────────────────────────────────────
 
 def get_db_connection():
-        return sqlite3.connect(DB_PATH)
+    return sqlite3.connect(DB_PATH)
 
 
 # ── trade log helpers ─────────────────────────────────────────────────────────
 
 def _init_db():
-        with get_db_connection() as conn:
+    with get_db_connection() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -475,7 +475,7 @@ def _init_db():
 
 
 def _save_trade(ticker, trade_date, entry, exit_price, notes):
-        with get_db_connection() as conn:
+    with get_db_connection() as conn:
         conn.execute(
             "INSERT INTO trades (ticker, trade_date, entry_price, exit_price, notes) "
             "VALUES (?, ?, ?, ?, ?)",
@@ -486,7 +486,7 @@ def _save_trade(ticker, trade_date, entry, exit_price, notes):
 
 
 def _load_trades() -> pd.DataFrame:
-        with get_db_connection() as conn:
+    with get_db_connection() as conn:
         df = pd.read_sql_query(
             "SELECT id, ticker, trade_date, entry_price, exit_price, notes "
             "FROM trades ORDER BY trade_date DESC, id DESC", conn)
@@ -499,7 +499,7 @@ def _load_trades() -> pd.DataFrame:
 
 
 def _save_options_position(data: dict):
-        if _has_supabase:
+    if _has_supabase:
         try:
             result = _sb_post("options_positions", {
                 "ticker":        data["ticker"],
@@ -540,7 +540,7 @@ def _save_options_position(data: dict):
 
 
 def _load_options_positions() -> pd.DataFrame:
-        if _has_supabase:
+    if _has_supabase:
         try:
             rows = _sb_get("options_positions", {"order": "created_at.desc"})
             if rows is not None:  # empty list is valid — Supabase reachable, zero rows
@@ -554,7 +554,7 @@ def _load_options_positions() -> pd.DataFrame:
 
 
 def _backup_positions():
-        if _has_supabase:
+    if _has_supabase:
         return  # Supabase is persistent — local JSON backup not needed
     try:
         df = _load_options_positions()
@@ -566,7 +566,7 @@ def _backup_positions():
 
 
 def _delete_options_position(pos_id: int):
-        if _has_supabase:
+    if _has_supabase:
         try:
             _sb_delete("options_positions", {"id": f"eq.{pos_id}"})
             return
@@ -578,7 +578,7 @@ def _delete_options_position(pos_id: int):
 
 
 def _update_live_option_price(pos_id: int, price) -> None:
-        if _has_supabase:
+    if _has_supabase:
         try:
             _sb_patch("options_positions", {"id": f"eq.{pos_id}"}, {"live_option_price": price})
             return
@@ -593,7 +593,7 @@ def _update_live_option_price(pos_id: int, price) -> None:
 
 
 def _on_live_opt_change(pos_id: int, key: str) -> None:
-        val = st.session_state.get(key)
+    val = st.session_state.get(key)
     try:
         price = float(val) if val is not None and float(val) > 0 else None
     except Exception:
@@ -608,7 +608,7 @@ _init_db()
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _fetch_earnings_date(ticker: str):
-        """Return the next earnings date as a date object, or None if unavailable."""
+    """Return the next earnings date as a date object, or None if unavailable."""
     try:
         cal = yf.Ticker(ticker).calendar
         if cal is None:
@@ -634,11 +634,11 @@ def _fetch_earnings_date(ticker: str):
 
 
 def _norm_cdf(x: float) -> float:
-        return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
 
 def _bs_call(S: float, K: float, T: float, r: float, sigma: float) -> float:
-        """Black-Scholes price for a European call option."""
+    """Black-Scholes price for a European call option."""
     if T <= 0 or sigma <= 0 or S <= 0:
         return max(S - K, 0.0)
     sqT = math.sqrt(T)
@@ -648,7 +648,7 @@ def _bs_call(S: float, K: float, T: float, r: float, sigma: float) -> float:
 
 
 def _evaluate_play(ticker: str, strike: float, expiry_date: date) -> dict:
-        """Fetch live data and compute Black-Scholes estimate for a specific options play."""
+    """Fetch live data and compute Black-Scholes estimate for a specific options play."""
     try:
         hist = yf.Ticker(ticker).history(period="3mo")
         if hist.empty:
@@ -689,7 +689,7 @@ def _evaluate_play(ticker: str, strike: float, expiry_date: date) -> dict:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _scan_options_candidates() -> list[dict]:
-        """
+    """
     Combines watchlist (full scorer) + screener universe (momentum filters)
     to find call option plays under $100/contract.
     """
@@ -821,7 +821,7 @@ def _scan_options_candidates() -> list[dict]:
 # ── styling helpers ───────────────────────────────────────────────────────────
 
 def _style_signals_table(row):
-        sig = row["Buy Signal"]
+    sig = row["Buy Signal"]
     anchor = sig if pd.notna(sig) else row["Score"]
     if anchor >= 70:
         bg = "background-color:#e8f5e9; color:#1b5e20"
@@ -837,7 +837,7 @@ def _style_signals_table(row):
 
 
 def metric_card(label: str, value: str, sub: str = "", cls: str = "") -> str:
-        sub_html = f'<div class="sub {cls}">{sub}</div>' if sub else ""
+    sub_html = f'<div class="sub {cls}">{sub}</div>' if sub else ""
     return f"""
 <div class="metric-card">
   <div class="label">{label}</div>
@@ -849,7 +849,7 @@ def metric_card(label: str, value: str, sub: str = "", cls: str = "") -> str:
 # ── field label helper ────────────────────────────────────────────────────────
 
 def _field(label: str, value: str, color: str = "#000000") -> str:
-        return (
+    return (
         f'<div>'
         f'<div style="color:#999;font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">{label}</div>'
         f'<div style="color:{color};font-weight:700;font-size:0.95rem;">{value}</div>'
@@ -858,7 +858,7 @@ def _field(label: str, value: str, color: str = "#000000") -> str:
 
 
 def _score_bar_html(val: int, color: str) -> str:
-        return (
+    return (
         f'<div style="background:#f2f2f2;border-radius:100px;height:5px;overflow:hidden;">'
         f'<div style="background:{color};border-radius:100px;height:5px;width:{val}%;"></div>'
         f'</div>'
@@ -868,7 +868,7 @@ def _score_bar_html(val: int, color: str) -> str:
 # ── persistence helpers ───────────────────────────────────────────────────────
 
 def _save_setting(key: str, value: float) -> None:
-        if _has_supabase:
+    if _has_supabase:
         try:
             # upsert via POST with Prefer: resolution=merge-duplicates
             hdrs = {**_SB_HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"}
@@ -890,15 +890,15 @@ def _save_setting(key: str, value: float) -> None:
 
 
 def _save_balance(balance: float) -> None:
-        _save_setting("balance", balance)
+    _save_setting("balance", balance)
 
 
 def _save_buying_power(bp: float) -> None:
-        _save_setting("buying_power", bp)
+    _save_setting("buying_power", bp)
 
 
 def _save_watchlist(tickers: list) -> None:
-        path = os.path.join(_ROOT, "data", "watchlist.py")
+    path = os.path.join(_ROOT, "data", "watchlist.py")
     with open(path, "w") as f:
         f.write("# watchlist.py\n")
         f.write("# Fundamentally strong stocks, all priced under $75.\n")
@@ -995,7 +995,7 @@ _SCENARIOS: dict = {
 # ── session state init ────────────────────────────────────────────────────────
 
 if "wl_tickers" not in st.session_state:
-        from data.watchlist import WATCHLIST as _WL_INIT
+    from data.watchlist import WATCHLIST as _WL_INIT
     st.session_state.wl_tickers = list(_WL_INIT)
 
 
@@ -1018,7 +1018,7 @@ st.markdown(
 _strip_data = _fetch_ticker_strip()
 _strip_parts = []
 for _si in _strip_data:
-        _sp = f"${_si['price']:,.2f}" if _si["price"] else "—"
+    _sp = f"${_si['price']:,.2f}" if _si["price"] else "—"
     if _si["pct"] is not None:
         _sc = "#00e676" if _si["pct"] >= 0 else "#ff5252"
         _spct = f'<span style="color:{_sc}">{_si["pct"]:+.2f}%</span>'
@@ -1062,7 +1062,7 @@ _risk_color     = "#00c853" if _risk_score < 30 else ("#ff9800" if _risk_score <
 _pos_badges_html = ""
 _today_ch = date.today()
 for _, _pr in _open_pos_df.iterrows():
-        try:
+    try:
         _exp_d  = datetime.strptime(str(_pr["expiry"]), "%Y-%m-%d").date()
         _dte_ch = (_exp_d - _today_ch).days
         _dte_s  = f"{_dte_ch}d"
@@ -1074,7 +1074,7 @@ for _, _pr in _open_pos_df.iterrows():
         f'{_pr["ticker"]} <span style="color:#aaa;font-weight:400;">${float(_pr["strike"]):.0f} · {_dte_s}</span></span>'
     )
 if not _pos_badges_html:
-        _pos_badges_html = '<span style="color:#aaa;font-size:0.8rem;">No open positions</span>'
+    _pos_badges_html = '<span style="color:#aaa;font-size:0.8rem;">No open positions</span>'
 
 # — risk gradient marker bar —
 _risk_bar_html = (
@@ -1087,7 +1087,7 @@ _risk_bar_html = (
 
 _ch_tracker_col, _ch_btn_col = st.columns([11, 1])
 with _ch_tracker_col:
-        st.markdown(
+    st.markdown(
         '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:6px;">'
 
         # Card 1 — Total Value
@@ -1136,7 +1136,7 @@ with _ch_tracker_col:
         unsafe_allow_html=True,
     )
 with _ch_btn_col:
-        st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
     if st.button("✏️", key="ch_edit_btn", help="Update balance / buying power", use_container_width=True):
         st.session_state["ch_editing"] = not st.session_state.get("ch_editing", False)
 
@@ -1165,7 +1165,7 @@ st.markdown(
 )
 
 if st.session_state.get("ch_editing", False):
-        _bv1, _bv2, _bv3, _bv4 = st.columns([3, 3, 1, 4])
+    _bv1, _bv2, _bv3, _bv4 = st.columns([3, 3, 1, 4])
     _new_bal = _bv1.number_input(
         "Balance ($)",
         value=float(CHALLENGE_CURRENT),
@@ -1192,7 +1192,7 @@ if st.session_state.get("ch_editing", False):
 _h, _m = now_et.hour, now_et.minute
 _now_mins = _h * 60 + _m
 if 9 * 60 <= _now_mins < 9 * 60 + 45:
-        st.markdown(
+    st.markdown(
         '<div style="background:#e8f5e9;border:1.5px solid #00c853;border-radius:10px;'
         'padding:10px 16px;margin-bottom:10px;font-size:0.9rem;font-weight:600;color:#1b5e20;">'
         '🟢 MORNING SESSION — Check positions, run scanner, set alerts before 9:30 open.'
@@ -1200,7 +1200,7 @@ if 9 * 60 <= _now_mins < 9 * 60 + 45:
         unsafe_allow_html=True,
     )
 elif 15 * 60 + 30 <= _now_mins < 16 * 60:
-        st.markdown(
+    st.markdown(
         '<div style="background:#fffde7;border:1.5px solid #f9a825;border-radius:10px;'
         'padding:10px 16px;margin-bottom:10px;font-size:0.9rem;font-weight:600;color:#e65100;">'
         '🟡 EOD SESSION — Update SAIL price, update balance, review any open positions before close.'
@@ -1209,7 +1209,7 @@ elif 15 * 60 + 30 <= _now_mins < 16 * 60:
     )
 
 # ── tabs (Options Desk is first / default) ────────────────────────────────────
-tab2, tab1, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab2, tab1, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "⚡  Options Desk",
     "📊  Signals",
     "🔍  Research",
@@ -1359,9 +1359,9 @@ with tab1:
         st.rerun()
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 2 — Options Desk
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 2 — Options Desk
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab2:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#1a1a1a;margin:0 0 14px;">Options Desk</p>', unsafe_allow_html=True)
@@ -1494,24 +1494,24 @@ with tab2:
 
                 _ew_inline = (" " + earn_warn) if earn_warn else ""
                 st.markdown(f"""
-    <div class="options-card">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<div class="options-card">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <span class="ticker">{row['ticker']}</span>
     <span class="badge {type_cls}">{row['type']}</span>
     <span class="badge {status_cls}">{row['status']}</span>{_ew_inline}
     <span style="margin-left:auto;color:#ccc;font-size:0.78rem;">#{_pos_num}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:14px;">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:14px;">
     {_field("Strike",    f"${row['strike']:.2f}")}
     {_field("Expiry",    row['expiry'])}
     {_field("Qty",       f"{int(row['qty'])} contract{'s' if row['qty']!=1 else ''}")}
     {_field("Entry",     f"${row['entry_price']:.2f}")}
     {_field("Stop Loss", f"${row['stop_loss']:.2f}" if row['stop_loss'] else "—", "#ff1744")}
     {_field("Live $",    live_str)}
-      </div>
-      <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}
-    </div>
-    """, unsafe_allow_html=True)
+  </div>
+  <div style="margin-top:10px;">{targets_html}</div>{earn_row}{notes_row}{_hard_sell_banner}{_greeks_html}
+</div>
+""", unsafe_allow_html=True)
 
                 # Current Option $ input + P&L — visually connected to card
                 _lop_key = f"live_opt_{int(row['id'])}"
@@ -1713,11 +1713,11 @@ with tab2:
 
             def _mini_card(c, color, label):
                 return f"""<div style="background:#fff;border:1.5px solid {color};border-radius:10px;padding:10px 14px;margin-bottom:8px;">
-      <span style="font-weight:800;font-size:1rem;">{c['ticker']}</span>
-      <span style="background:{color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{label}</span>
-      <span style="float:right;font-weight:700;color:{color};">${c['cost']:.0f}</span>
-      <div style="color:#666;font-size:0.78rem;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
-    </div>"""
+  <span style="font-weight:800;font-size:1rem;">{c['ticker']}</span>
+  <span style="background:{color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{label}</span>
+  <span style="float:right;font-weight:700;color:{color};">${c['cost']:.0f}</span>
+  <div style="color:#666;font-size:0.78rem;margin-top:4px;">Signal {c['signal']:.0f} · Strike ${c['strike']:.2f} · Exp {c['expiry']}</div>
+</div>"""
 
             st.markdown("### 🎯 Top Plays Today")
             _t1, _t2, _t3 = st.columns(3)
@@ -1761,15 +1761,15 @@ with tab2:
                 _header_extras = (" " + _iv_badge if _iv_badge else "")
 
                 st.markdown(f"""
-    <div class="options-card">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<div class="options-card">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <span class="ticker">{c['ticker']}</span>
     <span class="badge {badge_cls}">Signal {c['signal']:.0f}</span>
     <span class="badge badge-blue">Long Call</span>
     <span class="badge {source_cls}">{c['source']}</span>{_header_extras}
     <span style="margin-left:auto;font-size:1.15rem;font-weight:800;color:#00c853;">${c['cost']:.0f}</span><span style="color:#aaa;font-size:0.78rem;"> total / contract</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
     {_field("Stock Price",      f"${c['stock_price']:.2f}")}
     {_field("Suggested Strike", f"${c['strike']:.2f}")}
     {_field("Expiry (~35 DTE)", c['expiry'])}
@@ -1777,10 +1777,10 @@ with tab2:
     {_field("Contract Cost",    f"${c['cost']:.0f}  (premium × 100)")}
     {_field("Break-even",       f"${c['strike'] + c['premium']:.2f}")}
     {_field("Earnings",         _earn_field)}
-      </div>
-      <div class="thesis">{c['thesis']}</div>
-    </div>
-    """, unsafe_allow_html=True)
+  </div>
+  <div class="thesis">{c['thesis']}</div>
+</div>
+""", unsafe_allow_html=True)
 
         if _earn_hidden > 0:
             st.caption(
@@ -1923,13 +1923,13 @@ with tab2:
                     _iv_extra = f'<div style="margin-top:8px;padding:8px 12px;background:#fff3e0;border-radius:8px;color:#e65100;font-weight:600;font-size:0.85rem;">⚠️ Elevated historical vol ({r["hv_pct"]:.1f}%) — premiums are expensive. Size position down.</div>'
 
                 st.markdown(f"""
-    <div class="options-card">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<div class="options-card">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <span class="ticker">{r['ticker']}</span>
     <span class="badge badge-blue">Long Call · {r['dte']}d</span>
     <span class="badge {cost_cls}">{cost_lbl}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px;">
     {_field("Stock Price",   f"${r['price']:.2f}")}
     {_field("Strike",        f"${r['strike']:.2f}")}
     {_field("Expiry",        r['expiry'])}
@@ -1938,10 +1938,10 @@ with tab2:
     {_field("Est. Premium",  f"${r['premium']:.2f} / share")}
     {_field("Contract Cost", f"${r['cost']:.0f}  (premium × 100)", "#00c853" if cost_ok else "#ff1744")}
     {_field("Break-even",    f"${r['breakeven']:.2f}")}
-      </div>
-      <div style="margin-top:12px;padding:8px 12px;background:{_earn_bg};border-radius:8px;color:{_earn_fg};font-weight:600;font-size:0.85rem;">{_earn_txt}</div>{_iv_extra}
-    </div>
-    """, unsafe_allow_html=True)
+  </div>
+  <div style="margin-top:12px;padding:8px 12px;background:{_earn_bg};border-radius:8px;color:{_earn_fg};font-weight:600;font-size:0.85rem;">{_earn_txt}</div>{_iv_extra}
+</div>
+""", unsafe_allow_html=True)
 
 
     # ────────────────────────────────────────────────────────────────────────
@@ -1963,23 +1963,23 @@ with tab2:
 
         with st.expander("📖 How to use Sector Watch with the Options Scanner"):
             st.markdown("""
-    **Morning workflow (9:15 AM)**
+**Morning workflow (9:15 AM)**
 
-    1. **Check Sector Watch first** — scan each sector tab for tickers showing big % moves (green = up, red = down)
-    2. **Spot the moving sector** — if Quantum is up across the board after an earnings reaction, that's your sector
-    3. **Switch to Options Scanner** — use the Sector filter dropdown to select that sector
-    4. **Hit Scan** — the scanner will score only tickers in that sector and show plays under $100
-    5. **Check earnings dates** — the scanner auto-hides anything within 7 days of earnings
-    6. **Enter at open or not at all** — post-earnings sector reactions must be bought within the first 30 minutes or the move is gone
+1. **Check Sector Watch first** — scan each sector tab for tickers showing big % moves (green = up, red = down)
+2. **Spot the moving sector** — if Quantum is up across the board after an earnings reaction, that's your sector
+3. **Switch to Options Scanner** — use the Sector filter dropdown to select that sector
+4. **Hit Scan** — the scanner will score only tickers in that sector and show plays under $100
+5. **Check earnings dates** — the scanner auto-hides anything within 7 days of earnings
+6. **Enter at open or not at all** — post-earnings sector reactions must be bought within the first 30 minutes or the move is gone
 
-    **What each column means**
-    - **Change %** — today's move vs yesterday's close. Anything ±3% is worth watching
-    - **IV%** — implied volatility (manually updated). Above 80% = elevated risk, above 100% = skip unless intentional
-    - **Conviction** — your personal confidence level in the setup (manually updated)
-    - **Catalyst** — the reason the sector is moving (earnings reaction, news, macro)
-    - **Rating** — your overall grade for the setup (manually updated)
+**What each column means**
+- **Change %** — today's move vs yesterday's close. Anything ±3% is worth watching
+- **IV%** — implied volatility (manually updated). Above 80% = elevated risk, above 100% = skip unless intentional
+- **Conviction** — your personal confidence level in the setup (manually updated)
+- **Catalyst** — the reason the sector is moving (earnings reaction, news, macro)
+- **Rating** — your overall grade for the setup (manually updated)
 
-    **Key rule** — never chase a ticker that already moved 5%+ at open. The option has repriced and you are buying at the top.
+**Key rule** — never chase a ticker that already moved 5%+ at open. The option has repriced and you are buying at the top.
             """)
 
         _sw_sector_tabs = st.tabs(list(_SECTOR_WATCH.keys()))
@@ -2011,9 +2011,9 @@ with tab2:
                 )
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 3 — Research
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 3 — Research
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab3:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#1a1a1a;margin:0 0 4px;">AI Stock Research</p>', unsafe_allow_html=True)
@@ -2074,9 +2074,9 @@ with tab3:
         st.markdown(st.session_state["_last_report"])
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 4 — Trade Log
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 4 — Trade Log
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab4:
     trades = _load_trades()
@@ -2169,9 +2169,9 @@ with tab4:
         st.dataframe(sty, use_container_width=True, hide_index=True)  # noqa
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 5 — Market Intel
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 5 — Market Intel
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab5:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 14px;">Market Intel</p>', unsafe_allow_html=True)
@@ -2273,12 +2273,12 @@ with tab5:
     st.markdown('<div class="card"><div style="font-size:0.72rem;font-weight:700;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Current Environment</div><div style="font-size:0.93rem;color:#000;line-height:1.75;">Fed on hold, watching inflation data closely. Next CPI: <b>May 13</b>. Next Fed meeting: <b>June 17–18</b>. Market is in data-dependent mode — strong jobs or sticky inflation could push the Fed to stay higher for longer. Monitor the SPY 200-day MA as the key bull/bear dividing line. Avoid buying options into any earnings on the schedule above.</div></div>', unsafe_allow_html=True)
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 8 — Congressional Trades
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Congressional Trades (inside Market Intel)
+# ═══════════════════════════════════════════════════════════════════════════════
 
-with tab8:
-    st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
+    st.divider()
+    st.markdown('<p style="font-size:1.0rem;font-weight:700;color:#000;margin:0 0 10px;">🏛️ Congressional Trades</p>', unsafe_allow_html=True)
     st.caption("Recent Senate & House stock disclosures via Quiver Quantitative")
 
     @st.cache_data(ttl=3600)
@@ -2313,16 +2313,16 @@ with tab8:
             _border = border_color or ("#00c853" if _is_buy else "#e0e0e0")
             _in_wl  = "⭐ Watched &nbsp;·&nbsp;" if t.get("Ticker","").upper() in _ct_watchlist else ""
             return f"""<div style="background:#fff;border:1.5px solid {_border};border-radius:10px;padding:12px 16px;margin-bottom:8px;">
-      <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
-      <span style="background:{_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_label}</span>
-      <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_chamber}</span>
-      <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')} <span style="color:#999;font-weight:400;">· {t.get('Party','')}</span></div>
-      <div style="color:#666;font-size:0.78rem;margin-top:2px;">
+  <span style="font-weight:800;font-size:1.05rem;">{t.get('Ticker','')}</span>
+  <span style="background:{_color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:8px;">{_label}</span>
+  <span style="background:#424242;color:#fff;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px;">🏛 {_chamber}</span>
+  <div style="color:#333;font-size:0.85rem;margin-top:6px;font-weight:600;">{t.get('Representative','')} <span style="color:#999;font-weight:400;">· {t.get('Party','')}</span></div>
+  <div style="color:#666;font-size:0.78rem;margin-top:2px;">
     {_in_wl}💰 {t.get('Range','—')} &nbsp;·&nbsp;
     📅 Traded: {t.get('TransactionDate','—')} &nbsp;·&nbsp;
     📋 Disclosed: {t.get('ReportDate','—')}
-      </div>
-    </div>"""
+  </div>
+</div>"""
 
         # Apply filter to Your Tickers too
         _ct_your_all = [t for t in _ct_data if t.get("Ticker","").upper() in _ct_watchlist]
@@ -2357,9 +2357,9 @@ with tab8:
             st.markdown(_ct_card(t), unsafe_allow_html=True)
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 6 — Stock Scorer
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 6 — Stock Scorer
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab6:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Stock Scorer</p>', unsafe_allow_html=True)
@@ -2372,91 +2372,91 @@ with tab6:
         st.markdown('<div class="card"><span style="color:#aaa;">No data available. Run python3 data/market_data.py first.</span></div>', unsafe_allow_html=True)
     else:
         _ss_rows = []
-    for _, _r in _ss_df.iterrows():
-        _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
-        _sig  = float(_r["Buy Signal"]) if pd.notna(_r["Buy Signal"]) else 0.0
-        _vrat = float(_r["Vol Ratio"])  if pd.notna(_r["Vol Ratio"])  else 1.0
+        for _, _r in _ss_df.iterrows():
+            _rsi  = float(_r["RSI"])        if pd.notna(_r["RSI"])        else 50.0
+            _sig  = float(_r["Buy Signal"]) if pd.notna(_r["Buy Signal"]) else 0.0
+            _vrat = float(_r["Vol Ratio"])  if pd.notna(_r["Vol Ratio"])  else 1.0
 
-        _risk  = min(int(abs(_rsi - 50) * 2), 100)
-        _opp   = min(int(_sig), 100)
-        _volsc = min(int(_vrat * 25), 100)
+            _risk  = min(int(abs(_rsi - 50) * 2), 100)
+            _opp   = min(int(_sig), 100)
+            _volsc = min(int(_vrat * 25), 100)
 
-        if _opp >= 70 and _risk < 40:
-            _rtg, _rcls = "Strong Buy", "badge-green"
-        elif _opp >= 55 and _risk < 55:
-            _rtg, _rcls = "Buy", "badge-blue"
-        elif _opp >= 40:
-            _rtg, _rcls = "Hold", "badge-yellow"
-        elif _opp >= 25:
-            _rtg, _rcls = "Watch", "badge-orange"
-        else:
-            _rtg, _rcls = "Avoid", "badge-red"
+            if _opp >= 70 and _risk < 40:
+                _rtg, _rcls = "Strong Buy", "badge-green"
+            elif _opp >= 55 and _risk < 55:
+                _rtg, _rcls = "Buy", "badge-blue"
+            elif _opp >= 40:
+                _rtg, _rcls = "Hold", "badge-yellow"
+            elif _opp >= 25:
+                _rtg, _rcls = "Watch", "badge-orange"
+            else:
+                _rtg, _rcls = "Avoid", "badge-red"
 
-        if _opp >= 60 and _risk < 50:
-            _zone, _zcol = "Buy Zone", "#00c853"
-        elif _risk >= 60 or _opp < 25:
-            _zone, _zcol = "Danger Zone", "#ff1744"
-        elif _opp >= 35:
-            _zone, _zcol = "Hold Zone", "#e65100"
-        else:
-            _zone, _zcol = "Watch Zone", "#999"
+            if _opp >= 60 and _risk < 50:
+                _zone, _zcol = "Buy Zone", "#00c853"
+            elif _risk >= 60 or _opp < 25:
+                _zone, _zcol = "Danger Zone", "#ff1744"
+            elif _opp >= 35:
+                _zone, _zcol = "Hold Zone", "#e65100"
+            else:
+                _zone, _zcol = "Watch Zone", "#999"
 
-        _ss_rows.append({
-            "ticker": str(_r["Ticker"]),
-            "price":  float(_r["Close"]),
-            "opp":    _opp,
-            "risk":   _risk,
-            "volsc":  _volsc,
-            "rtg":    _rtg,
-            "rcls":   _rcls,
-            "zone":   _zone,
-            "zcol":   _zcol,
-        })
+            _ss_rows.append({
+                "ticker": str(_r["Ticker"]),
+                "price":  float(_r["Close"]),
+                "opp":    _opp,
+                "risk":   _risk,
+                "volsc":  _volsc,
+                "rtg":    _rtg,
+                "rcls":   _rcls,
+                "zone":   _zone,
+                "zcol":   _zcol,
+            })
 
-    _rtg_order = {"Strong Buy": 0, "Buy": 1, "Hold": 2, "Watch": 3, "Avoid": 4}
-    _ss_rows.sort(key=lambda x: (_rtg_order.get(x["rtg"], 5), -x["opp"]))
+        _rtg_order = {"Strong Buy": 0, "Buy": 1, "Hold": 2, "Watch": 3, "Avoid": 4}
+        _ss_rows.sort(key=lambda x: (_rtg_order.get(x["rtg"], 5), -x["opp"]))
 
-    for _si in range(0, len(_ss_rows), 2):
-        _pair  = _ss_rows[_si:_si + 2]
-        _scols = st.columns(len(_pair))
-        for _scorer_col, _sr in zip(_scols, _pair):
-            with _scorer_col:
-                _obar = _score_bar_html(_sr["opp"],   "#00c853")
-                _rbar = _score_bar_html(_sr["risk"],  "#ff1744")
-                _vbar = _score_bar_html(_sr["volsc"], "#1565c0")
-                _risk_col = "#ff1744" if _sr["risk"] > 60 else "#000"
-                st.markdown(f"""
-    <div class="options-card">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        for _si in range(0, len(_ss_rows), 2):
+            _pair  = _ss_rows[_si:_si + 2]
+            _scols = st.columns(len(_pair))
+            for _scorer_col, _sr in zip(_scols, _pair):
+                with _scorer_col:
+                    _obar = _score_bar_html(_sr["opp"],   "#00c853")
+                    _rbar = _score_bar_html(_sr["risk"],  "#ff1744")
+                    _vbar = _score_bar_html(_sr["volsc"], "#1565c0")
+                    _risk_col = "#ff1744" if _sr["risk"] > 60 else "#000"
+                    st.markdown(f"""
+<div class="options-card">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
     <span class="ticker">{_sr['ticker']}</span>
     <span style="color:#999;font-size:0.85rem;font-weight:600;">${_sr['price']:.2f}</span>
     <span class="badge {_sr['rcls']}" style="margin-left:auto;">{_sr['rtg']}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
     {_field("Opportunity", str(_sr['opp']) + "/100")}
     {_field("Risk", str(_sr['risk']) + "/100", _risk_col)}
     {_field("Vol Activity", str(_sr['volsc']) + "/100")}
-      </div>
-      <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:3px;">Opportunity</div>{_obar}
-      <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Risk</div>{_rbar}
-      <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Volume Activity</div>{_vbar}
-      <div style="margin-top:12px;padding:6px 10px;background:#f8f9fa;border-radius:8px;font-size:0.82rem;font-weight:700;color:{_sr['zcol']};text-align:center;">{_sr['zone']}</div>
-    </div>""", unsafe_allow_html=True)
+  </div>
+  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin-bottom:3px;">Opportunity</div>{_obar}
+  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Risk</div>{_rbar}
+  <div style="font-size:0.7rem;color:#999;text-transform:uppercase;font-weight:600;letter-spacing:.05em;margin:8px 0 3px;">Volume Activity</div>{_vbar}
+  <div style="margin-top:12px;padding:6px 10px;background:#f8f9fa;border-radius:8px;font-size:0.82rem;font-weight:700;color:{_sr['zcol']};text-align:center;">{_sr['zone']}</div>
+</div>""", unsafe_allow_html=True)
 
 
-    # ═══════════════════════════════════════════════════════════════════════════════
-    # Tab 7 — Scenario Engine
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tab 7 — Scenario Engine
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab7:
     st.markdown('<p style="font-size:1.1rem;font-weight:700;color:#000;margin:0 0 4px;">Scenario Engine</p>', unsafe_allow_html=True)
     st.caption("Select a macro scenario to see projected sector impacts and which watchlist tickers are affected.")
 
     _se_scenario = st.selectbox(
-    "Select scenario",
-    list(_SCENARIOS.keys()),
-    key="se_scenario_sel",
-    label_visibility="collapsed",
+        "Select scenario",
+        list(_SCENARIOS.keys()),
+        key="se_scenario_sel",
+        label_visibility="collapsed",
     )
 
     _sc_data = _SCENARIOS[_se_scenario]
@@ -2472,19 +2472,19 @@ with tab7:
     _sec_html = ""
     for _sname, _simpact, _snote in _sc_data["sectors"]:
         if _simpact == "positive":
-        _scolor, _sicon = "#00c853", "↑ Positive"
-    elif _simpact == "negative":
-        _scolor, _sicon = "#ff1744", "↓ Negative"
-    else:
-        _scolor, _sicon = "#424242", "→ Neutral"
-    _sec_html += (
-        f'<div style="display:grid;grid-template-columns:180px 100px 1fr;align-items:start;'
-        f'gap:12px;padding:9px 0;border-bottom:1px solid #f2f2f2;">'
-        f'<div style="font-weight:700;color:#000;font-size:0.87rem;">{_sname}</div>'
-        f'<div style="font-weight:700;color:{_scolor};font-size:0.85rem;">{_sicon}</div>'
-        f'<div style="color:#424242;font-size:0.82rem;line-height:1.5;">{_snote}</div>'
-        f'</div>'
-    )
+            _scolor, _sicon = "#00c853", "↑ Positive"
+        elif _simpact == "negative":
+            _scolor, _sicon = "#ff1744", "↓ Negative"
+        else:
+            _scolor, _sicon = "#424242", "→ Neutral"
+        _sec_html += (
+            f'<div style="display:grid;grid-template-columns:180px 100px 1fr;align-items:start;'
+            f'gap:12px;padding:9px 0;border-bottom:1px solid #f2f2f2;">'
+            f'<div style="font-weight:700;color:#000;font-size:0.87rem;">{_sname}</div>'
+            f'<div style="font-weight:700;color:{_scolor};font-size:0.85rem;">{_sicon}</div>'
+            f'<div style="color:#424242;font-size:0.82rem;line-height:1.5;">{_snote}</div>'
+            f'</div>'
+        )
     st.markdown(f'<div class="card" style="padding:16px 22px;">{_sec_html}</div>', unsafe_allow_html=True)
 
     # Vulnerable / Benefiting columns
@@ -2492,29 +2492,29 @@ with tab7:
 
     with _se_vc:
         st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#ff1744;margin:14px 0 8px;">⚠ Vulnerable Tickers</p>', unsafe_allow_html=True)
-    _vuln = _sc_data["vulnerable"]
-    if _vuln:
-        _vhtml = ""
-        for _vt in sorted(_vuln, key=lambda t: (0 if t in _se_wl else 1, t)):
-            _vcls = "badge-red" if _vt in _se_wl else "badge-yellow"
-            _vsuf = " ★" if _vt in _se_wl else ""
-            _vhtml += f'<span class="badge {_vcls}" style="margin:3px 4px 3px 0;">{_vt}{_vsuf}</span>'
-        st.markdown(f'<div class="card" style="padding:14px 18px;">{_vhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
+        _vuln = _sc_data["vulnerable"]
+        if _vuln:
+            _vhtml = ""
+            for _vt in sorted(_vuln, key=lambda t: (0 if t in _se_wl else 1, t)):
+                _vcls = "badge-red" if _vt in _se_wl else "badge-yellow"
+                _vsuf = " ★" if _vt in _se_wl else ""
+                _vhtml += f'<span class="badge {_vcls}" style="margin:3px 4px 3px 0;">{_vt}{_vsuf}</span>'
+            st.markdown(f'<div class="card" style="padding:14px 18px;">{_vhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified for this scenario.</span></div>', unsafe_allow_html=True)
 
     with _se_bc:
         st.markdown('<p style="font-size:0.9rem;font-weight:700;color:#00c853;margin:14px 0 8px;">✓ Potential Beneficiaries</p>', unsafe_allow_html=True)
-    _bene = _sc_data["benefiting"]
-    if _bene:
-        _bhtml = ""
-        for _bt in sorted(_bene, key=lambda t: (0 if t in _se_wl else 1, t)):
-            _bcls = "badge-green" if _bt in _se_wl else "badge-blue"
-            _bsuf = " ★" if _bt in _se_wl else ""
-            _bhtml += f'<span class="badge {_bcls}" style="margin:3px 4px 3px 0;">{_bt}{_bsuf}</span>'
-        st.markdown(f'<div class="card" style="padding:14px 18px;">{_bhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
+        _bene = _sc_data["benefiting"]
+        if _bene:
+            _bhtml = ""
+            for _bt in sorted(_bene, key=lambda t: (0 if t in _se_wl else 1, t)):
+                _bcls = "badge-green" if _bt in _se_wl else "badge-blue"
+                _bsuf = " ★" if _bt in _se_wl else ""
+                _bhtml += f'<span class="badge {_bcls}" style="margin:3px 4px 3px 0;">{_bt}{_bsuf}</span>'
+            st.markdown(f'<div class="card" style="padding:14px 18px;">{_bhtml}<div style="margin-top:10px;font-size:0.72rem;color:#999;">★ on your watchlist</div></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="card"><span style="color:#aaa;font-size:0.85rem;">None identified — consider going defensive or cash.</span></div>', unsafe_allow_html=True)
 
     # Suggested action
     st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#000;margin:14px 0 8px;">Suggested Action</p>', unsafe_allow_html=True)
