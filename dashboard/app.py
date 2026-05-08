@@ -689,15 +689,26 @@ _init_db()
 # ── options scanner ───────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=86400, show_spinner=False)  # listings change rarely — 24h cache
-def _is_optionable(ticker: str) -> bool:
-    """Return True if the ticker has any listed options on a major exchange.
-    yfinance returns an empty tuple for tickers without options (e.g. MAPS,
-    most penny stocks, OTC names) — that's our filter signal."""
+def _is_optionable_cached(ticker: str) -> bool:
+    """Inner cached lookup. Raises on yfinance error so transient failures
+    (rate limits, network blips) aren't cached. Streamlit's @st.cache_data
+    only caches successful returns, so this gives us a clean retry next time."""
+    opts = yf.Ticker(ticker).options
+    return bool(opts) and len(opts) > 0
+
+
+def _is_optionable(ticker: str):
+    """Wrapper that converts errors to None.
+       Returns True  → confirmed optionable
+       Returns False → confirmed NOT optionable (e.g. MAPS, most penny stocks)
+       Returns None  → unknown / yfinance unreachable. Callers should NOT filter
+                       on None — better to surface a play we can't verify than
+                       to silently drop everything when yfinance rate-limits."""
     try:
-        opts = yf.Ticker(ticker).options
-        return bool(opts) and len(opts) > 0
-    except Exception:
-        return False
+        return _is_optionable_cached(ticker)
+    except Exception as _e:
+        print(f"[YF WARN] _is_optionable({ticker}) lookup failed: {_e}", flush=True)
+        return None
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -895,7 +906,10 @@ def _scan_options_candidates() -> list[dict]:
         # ── Filter: skip tickers with no listed options on a major exchange.
         # This catches penny stocks like MAPS that show in the screener but
         # aren't actually tradeable as options on Robinhood / IBKR / etc.
-        if not _is_optionable(ticker):
+        # Only filter on explicit False — None means we couldn't reach yfinance
+        # (rate limit, etc.), in which case it's safer to surface the play with
+        # the 4%-rule estimate than to silently drop every ticker.
+        if _is_optionable(ticker) is False:
             continue
 
         # Standard strike increments
@@ -2059,7 +2073,14 @@ with tab2:
         _sector = st.selectbox("Sector filter", list(SECTORS.keys()), key="sector_filter")
 
         if st.button("↺ Scan", use_container_width=False, key="scan_options"):
+            # Clear all scan-related caches so the user can force a fresh
+            # lookup — useful if yfinance was rate-limited on a prior pass.
             _scan_options_candidates.clear()
+            try:
+                _is_optionable_cached.clear()
+                _live_call_premium.clear()
+            except Exception:
+                pass
             st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
