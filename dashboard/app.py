@@ -624,6 +624,57 @@ def _update_live_option_price(pos_id: int, price) -> None:
     _backup_positions(force=True)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _load_sector_overrides() -> dict:
+    """Load all manually-entered Sector Watch annotations.
+
+    Returns a dict keyed by ticker:
+        {"BBAI": {"iv_pct": "102%", "conviction": "High", "catalyst": "Q2 earnings", "rating": "A"}, ...}
+
+    Cached for 60 s so Streamlit reruns don't hammer Supabase on every
+    interaction. Cache is busted via `_load_sector_overrides.clear()` when a
+    save lands so the next render shows the new value.
+
+    Falls back to {} if Supabase is unreachable. New users with no overrides
+    yet also get {} (every editable cell renders blank until they type).
+    """
+    if _has_supabase:
+        try:
+            rows = _sb_get("sector_watch_overrides", {"select": "*"})
+            return {r["ticker"]: r for r in (rows or [])}
+        except Exception as _e:
+            # Most likely cause: table doesn't exist yet on first run.
+            # Caller will fall back to empty dict and prompt user to type
+            # values, which will create the row on first save.
+            print(f"[SB WARN] _load_sector_overrides failed (table missing?): {_e}", flush=True)
+    return {}
+
+
+def _save_sector_override(ticker: str, fields: dict) -> bool:
+    """Upsert one ticker's annotations. Uses delete-then-insert (same pattern
+    as _save_setting) so we don't need a UNIQUE constraint on `ticker`.
+    Returns True on success, False if Supabase failed."""
+    if not _has_supabase:
+        return False
+    payload = {
+        "ticker":     ticker,
+        "iv_pct":     fields.get("iv_pct"),
+        "conviction": fields.get("conviction"),
+        "catalyst":   fields.get("catalyst"),
+        "rating":     fields.get("rating"),
+    }
+    try:
+        try:
+            _sb_delete("sector_watch_overrides", {"ticker": f"eq.{ticker}"})
+        except Exception:
+            pass
+        _sb_post("sector_watch_overrides", payload)
+        return True
+    except Exception as _e:
+        print(f"[SB ERROR] _save_sector_override({ticker}) failed: {_e}", flush=True)
+        return False
+
+
 def _update_options_position(pos_id: int, data: dict) -> None:
     """Update editable fields on an existing position. Mirrors _save_options_position
     for the user-editable columns (status/created_at/live_option_price untouched)."""
@@ -699,14 +750,26 @@ def _is_optionable(ticker: str):
         return None
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def _live_call_premium(ticker: str, strike: float, target_expiry: str) -> float | None:
-    """Fetch the live ASK premium for a call from yfinance's options chain.
+@st.cache_data(ttl=60, show_spinner=False)
+def _live_call_quote(ticker: str, strike: float, target_expiry: str) -> dict | None:
+    """Fetch the live call quote for a strike+expiry from yfinance's chain.
 
-    Snaps to the closest available expiry (yfinance only lists weeklies/monthlies)
-    and the closest available strike. Returns the ask, falling back to lastPrice
-    if ask is missing/zero. Returns None if the chain isn't available so the
-    caller can fall back to the 4%-of-stock-price estimate.
+    Returns a dict with the *actual* snapped values so the caller can display
+    the same expiry/strike the price is for (yfinance only lists certain
+    weeklies/monthlies — the user's requested 6/19 may not exist, so we snap
+    to the closest real contract like 6/12).
+
+    Keys:
+        ask, bid, last      — quoted prices (None if missing)
+        premium             — best price to use as the cost estimate
+        premium_kind        — 'ask' | 'bid+0.05' | 'last' | None
+        snapped_expiry      — YYYY-MM-DD of the real listed contract used
+        snapped_strike      — float of the real listed strike used
+        last_trade_date     — when this contract last traded (str or None)
+
+    Returns None if the chain isn't reachable so the caller can fall back to
+    the 4%-of-stock-price estimate. TTL dropped from 5 min → 60 s for fresher
+    pricing during the user's morning scan routine.
     """
     try:
         t = yf.Ticker(ticker)
@@ -722,18 +785,56 @@ def _live_call_premium(ticker: str, strike: float, target_expiry: str) -> float 
         calls = chain.calls
         if calls is None or calls.empty:
             return None
-        # Snap to the closest available strike
+        # Snap to the closest listed strike
         idx = (calls["strike"] - strike).abs().idxmin()
         row = calls.loc[idx]
-        ask  = float(row.get("ask",       0) or 0)
-        last = float(row.get("lastPrice", 0) or 0)
-        if ask > 0:
-            return round(ask, 2)
-        if last > 0:
-            return round(last, 2)
-        return None
+
+        def _safe_num(v):
+            try:
+                f = float(v)
+                return f if f > 0 else None
+            except Exception:
+                return None
+
+        ask  = _safe_num(row.get("ask"))
+        bid  = _safe_num(row.get("bid"))
+        last = _safe_num(row.get("lastPrice"))
+        last_dt = row.get("lastTradeDate")
+        last_dt_str = None
+        try:
+            if last_dt is not None:
+                last_dt_str = str(last_dt)[:10]
+        except Exception:
+            pass
+
+        # Prefer ask (what you'd pay), then bid+small spread, then last trade
+        if ask:
+            premium, premium_kind = ask, "ask"
+        elif bid:
+            premium, premium_kind = round(bid + 0.05, 2), "bid+0.05"
+        elif last:
+            premium, premium_kind = last, "last"
+        else:
+            return None
+
+        return {
+            "ask":             ask,
+            "bid":             bid,
+            "last":            last,
+            "premium":         round(float(premium), 2),
+            "premium_kind":    premium_kind,
+            "snapped_expiry":  best_exp,
+            "snapped_strike":  float(row["strike"]),
+            "last_trade_date": last_dt_str,
+        }
     except Exception:
         return None
+
+
+def _live_call_premium(ticker: str, strike: float, target_expiry: str):
+    """Backwards-compat shim — some call sites only want the premium float."""
+    q = _live_call_quote(ticker, strike, target_expiry)
+    return q["premium"] if q else None
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -921,10 +1022,38 @@ def _scan_options_candidates() -> list[dict]:
         # Try the live options chain first — that's what the user will actually
         # pay on Robinhood. Fall back to the 4%-of-stock-price estimate only if
         # the chain isn't reachable (yfinance flake, rate limit, etc.).
-        live_prem = _live_call_premium(ticker, strike, expiry_date.strftime("%Y-%m-%d"))
-        if live_prem is not None and live_prem > 0:
-            premium      = round(round(live_prem / 0.05) * 0.05, 2)
+        target_expiry_str = expiry_date.strftime("%Y-%m-%d")
+        live_q = _live_call_quote(ticker, strike, target_expiry_str)
+
+        # Defaults — overridden if we got a live quote
+        display_strike  = strike
+        display_expiry  = target_expiry_str
+        bid_ask_note    = ""
+        snap_note       = ""
+
+        if live_q is not None and live_q.get("premium"):
+            premium      = round(round(live_q["premium"] / 0.05) * 0.05, 2)
             premium_src  = "live"
+
+            # Use the ACTUAL listed expiry/strike, not the target we asked for.
+            # This is the source of the "Said 6/19 for UBER but there's no 6/19"
+            # bug — we'd compute a Friday and display it even when yfinance
+            # snapped the price to a different real contract.
+            display_strike = live_q["snapped_strike"]
+            display_expiry = live_q["snapped_expiry"]
+
+            # Mark when we snapped (so the user knows the displayed contract is
+            # the real one, not the one the formula asked for)
+            if abs(display_strike - strike) > 0.01:
+                snap_note = f" (snapped from ${strike:.2f})"
+            if display_expiry != target_expiry_str:
+                snap_note = (snap_note + f" (expiry snapped from {target_expiry_str})").strip()
+
+            # Show the bid–ask spread so the user can see the range, not just one number
+            if live_q.get("bid") and live_q.get("ask"):
+                bid_ask_note = f" · bid ${live_q['bid']:.2f} / ask ${live_q['ask']:.2f}"
+            elif live_q.get("premium_kind") == "last" and live_q.get("last_trade_date"):
+                bid_ask_note = f" · last trade {live_q['last_trade_date']}"
         else:
             raw_premium  = price * 0.04
             premium      = round(round(raw_premium / 0.05) * 0.05, 2)
@@ -947,16 +1076,17 @@ def _scan_options_candidates() -> list[dict]:
             f"{strength} setup · {source} signal {sig:.0f}/100 · "
             f"RSI {info['rsi']:.0f} · {info['vol_ratio']:.1f}× avg volume. "
             f"Contract cost = ${cost_per_contract:.0f} "
-            f"(${premium:.2f} premium × 100 shares — {price_label}). "
-            f"Target strike ${strike:.2f}, break-even ~${strike + premium:.2f}."
+            f"(${premium:.2f} premium × 100 — {price_label}{bid_ask_note}). "
+            f"Target strike ${display_strike:.2f}{snap_note}, "
+            f"break-even ~${display_strike + premium:.2f}."
         )
 
         candidates.append({
             "ticker":      ticker,
             "signal":      sig,
             "stock_price": price,
-            "strike":      strike,
-            "expiry":      expiry_date.strftime("%Y-%m-%d"),
+            "strike":      display_strike,
+            "expiry":      display_expiry,
             "premium":     premium,
             "cost":        cost_per_contract,
             "thesis":      thesis,
@@ -2066,7 +2196,7 @@ with tab2:
             _scan_options_candidates.clear()
             try:
                 _is_optionable_cached.clear()
-                _live_call_premium.clear()
+                _live_call_quote.clear()
             except Exception:
                 pass
             st.rerun()
@@ -2390,6 +2520,10 @@ with tab2:
 **Key rule** — never chase a ticker that already moved 5%+ at open. The option has repriced and you are buying at the top.
             """)
 
+        # Load all user-entered annotations once per render (cached 60 s).
+        # Each per-sector loop body reads from this shared dict.
+        _sw_overrides = _load_sector_overrides()
+
         _sw_sector_tabs = st.tabs(list(_SECTOR_WATCH.keys()))
         for _sw_tab, (_sw_sector, _sw_tickers) in zip(_sw_sector_tabs, _SECTOR_WATCH.items()):
             with _sw_tab:
@@ -2401,43 +2535,70 @@ with tab2:
                         _sw_chg = (_sw_price - _sw_prev) / _sw_prev * 100
                     else:
                         _sw_chg = None
+                    _earn_d  = _fetch_earnings_date(_sw_t)
+                    _earn_s  = str(_earn_d) if _earn_d else ""
+                    _ov      = _sw_overrides.get(_sw_t, {}) or {}
                     _sw_rows.append({
                         "Ticker":     _sw_t,
                         "Price":      _sw_price if _sw_price else None,
                         "Change %":   _sw_chg,
-                        "IV%":        "—",
-                        "Conviction": "—",
-                        "Earnings":   "—",
-                        "Catalyst":   "—",
-                        "Rating":     "—",
+                        "IV%":        (_ov.get("iv_pct")     or ""),
+                        "Conviction": (_ov.get("conviction") or ""),
+                        "Earnings":   _earn_s,
+                        "Catalyst":   (_ov.get("catalyst")   or ""),
+                        "Rating":     (_ov.get("rating")     or ""),
                     })
                 _sw_df = pd.DataFrame(_sw_rows)
 
-                def _color_chg(v):
-                    if pd.isna(v):
-                        return ""
-                    if v > 0:
-                        return "color:#00c853;font-weight:700"
-                    if v < 0:
-                        return "color:#ff1744;font-weight:700"
-                    return ""
-
-                # pandas ≥ 2.1 renamed Styler.applymap → Styler.map. Use a
-                # try/except so the table still renders if either name is missing.
-                _styler = _sw_df.style
-                if hasattr(_styler, "map"):
-                    _styler = _styler.map(_color_chg, subset=["Change %"])
-                else:
-                    _styler = _styler.applymap(_color_chg, subset=["Change %"])
-                _sw_styled = _styler.format({
-                    "Price":    lambda v: f"${v:.2f}" if pd.notna(v) else "—",
-                    "Change %": lambda v: f"{v:+.2f}%" if pd.notna(v) else "—",
-                })
-                st.dataframe(
-                    _sw_styled,
-                    use_container_width=True,
+                # Editable table. Live data columns (Ticker/Price/Change %/Earnings)
+                # are locked. IV%/Conviction/Catalyst/Rating are free text the
+                # user fills in manually during morning routine.
+                _sw_edited = st.data_editor(
+                    _sw_df,
                     hide_index=True,
+                    use_container_width=True,
+                    key=f"sw_editor_{_sw_sector}",
+                    num_rows="fixed",  # don't let the user add/delete rows
+                    column_config={
+                        "Ticker":     st.column_config.TextColumn("Ticker", disabled=True),
+                        "Price":      st.column_config.NumberColumn("Price", format="$%.2f", disabled=True),
+                        "Change %":   st.column_config.NumberColumn("Change %", format="%+.2f%%", disabled=True),
+                        "Earnings":   st.column_config.TextColumn("Earnings", disabled=True),
+                        "IV%":        st.column_config.TextColumn("IV%",        help="Your read on implied volatility (e.g. '85%')"),
+                        "Conviction": st.column_config.TextColumn("Conviction", help="High / Medium / Low"),
+                        "Catalyst":   st.column_config.TextColumn("Catalyst",   help="What's driving the move (e.g. 'Fed minutes Wed')"),
+                        "Rating":     st.column_config.TextColumn("Rating",     help="Your grade for this setup — A/B/C/D"),
+                    },
+                    disabled=["Ticker", "Price", "Change %", "Earnings"],
                 )
+
+                # Persist any edits — compare the returned df row-by-row to the
+                # overrides we loaded at the top of this render. Each delta gets
+                # one Supabase upsert.
+                _changes = 0
+                for _, _new in _sw_edited.iterrows():
+                    _tk     = _new["Ticker"]
+                    _ov     = _sw_overrides.get(_tk, {}) or {}
+                    _new_iv = (_new.get("IV%")        or "").strip() or None
+                    _new_co = (_new.get("Conviction") or "").strip() or None
+                    _new_ca = (_new.get("Catalyst")   or "").strip() or None
+                    _new_ra = (_new.get("Rating")     or "").strip() or None
+                    _old_iv = (_ov.get("iv_pct")     or None)
+                    _old_co = (_ov.get("conviction") or None)
+                    _old_ca = (_ov.get("catalyst")   or None)
+                    _old_ra = (_ov.get("rating")     or None)
+                    if (_new_iv != _old_iv or _new_co != _old_co
+                            or _new_ca != _old_ca or _new_ra != _old_ra):
+                        if _save_sector_override(_tk, {
+                            "iv_pct":     _new_iv,
+                            "conviction": _new_co,
+                            "catalyst":   _new_ca,
+                            "rating":     _new_ra,
+                        }):
+                            _changes += 1
+                if _changes:
+                    _load_sector_overrides.clear()  # next render fetches fresh
+                    st.toast(f"Saved {_changes} annotation change{'s' if _changes != 1 else ''}", icon="💾")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
