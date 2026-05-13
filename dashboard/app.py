@@ -985,12 +985,19 @@ def _scan_options_candidates() -> list[dict]:
 
     # Build suggestion cards
     candidates: list[dict] = []
+    # Stocks below this price are excluded — most have no liquid options chain
+    # on retail brokers (Robinhood etc.) even when yfinance technically lists
+    # one. MAPS at $0.39 is the canonical example. Set to $2 so BBAI at ~$4 and
+    # other small caps the user trades are still in scope.
+    _MIN_STOCK_PRICE = 2.00
     for ticker, info in all_candidates.items():
         if info["buy_signal"] < 30:
             continue
         price = info["price"]
         if price <= 0:
             continue
+        if price < _MIN_STOCK_PRICE:
+            continue  # rejects MAPS-style penny stocks that aren't tradeable on Robinhood
 
         # ── Filter: skip tickers with no listed options on a major exchange.
         # This catches penny stocks like MAPS that show in the screener but
@@ -2527,6 +2534,17 @@ with tab2:
         _sw_sector_tabs = st.tabs(list(_SECTOR_WATCH.keys()))
         for _sw_tab, (_sw_sector, _sw_tickers) in zip(_sw_sector_tabs, _SECTOR_WATCH.items()):
             with _sw_tab:
+                # Emoji prefix on Change % to keep a green/red color cue inside
+                # st.data_editor (which doesn't support per-row Styler colors).
+                def _fmt_chg(v):
+                    if v is None or pd.isna(v):
+                        return "—"
+                    if v > 0:
+                        return f"🟢 +{v:.2f}%"
+                    if v < 0:
+                        return f"🔴 {v:.2f}%"
+                    return f"⚪ {v:.2f}%"
+
                 _sw_rows = []
                 for _sw_t in _sw_tickers:
                     _sw_price = _live_price(_sw_t)
@@ -2541,7 +2559,7 @@ with tab2:
                     _sw_rows.append({
                         "Ticker":     _sw_t,
                         "Price":      _sw_price if _sw_price else None,
-                        "Change %":   _sw_chg,
+                        "Change %":   _fmt_chg(_sw_chg),
                         "IV%":        (_ov.get("iv_pct")     or ""),
                         "Conviction": (_ov.get("conviction") or ""),
                         "Earnings":   _earn_s,
@@ -2562,7 +2580,7 @@ with tab2:
                     column_config={
                         "Ticker":     st.column_config.TextColumn("Ticker", disabled=True),
                         "Price":      st.column_config.NumberColumn("Price", format="$%.2f", disabled=True),
-                        "Change %":   st.column_config.NumberColumn("Change %", format="%+.2f%%", disabled=True),
+                        "Change %":   st.column_config.TextColumn("Change %", disabled=True),
                         "Earnings":   st.column_config.TextColumn("Earnings", disabled=True),
                         "IV%":        st.column_config.TextColumn("IV%",        help="Your read on implied volatility (e.g. '85%')"),
                         "Conviction": st.column_config.TextColumn("Conviction", help="High / Medium / Low"),
