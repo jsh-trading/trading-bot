@@ -675,6 +675,188 @@ def _save_sector_override(ticker: str, fields: dict) -> bool:
         return False
 
 
+# ── Watchlist (Supabase-backed) ────────────────────────────────────────────────
+# Replaces the hardcoded data/watchlist.py — bot can now auto-add tickers and
+# the user can add/remove from the UI. Falls back to data.watchlist.WATCHLIST
+# if Supabase is unreachable on cold start.
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _load_watchlist_from_db() -> list:
+    """Return the current watchlist as a list of ticker symbols, ordered by
+    most-recently-added first. Cached 30s so Streamlit reruns don't hammer DB."""
+    if _has_supabase:
+        try:
+            rows = _sb_get("watchlist", {"select": "ticker,added_at,source", "order": "added_at.desc"})
+            return [r["ticker"] for r in (rows or [])]
+        except Exception as _e:
+            print(f"[SB WARN] _load_watchlist_from_db failed: {_e}", flush=True)
+    return []
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _load_watchlist_meta() -> dict:
+    """Returns dict keyed by ticker with metadata (source, added_at) for each.
+    Used so the UI can show 'auto' vs 'manual' badges per ticker."""
+    if _has_supabase:
+        try:
+            rows = _sb_get("watchlist", {"select": "*"})
+            return {r["ticker"]: r for r in (rows or [])}
+        except Exception:
+            pass
+    return {}
+
+
+def _add_to_watchlist(ticker: str, source: str = "manual") -> bool:
+    """Insert a ticker into the watchlist if it doesn't already exist.
+    Returns True if a new row was inserted, False if it was already there
+    or Supabase failed."""
+    ticker = ticker.strip().upper()
+    if not ticker:
+        return False
+    if not _has_supabase:
+        return False
+    try:
+        # Check if it exists first to avoid PK violation noise
+        rows = _sb_get("watchlist", {"ticker": f"eq.{ticker}", "select": "ticker"})
+        if rows:
+            return False
+        _sb_post("watchlist", {"ticker": ticker, "source": source})
+        _load_watchlist_from_db.clear()
+        _load_watchlist_meta.clear()
+        return True
+    except Exception as _e:
+        print(f"[SB ERROR] _add_to_watchlist({ticker}) failed: {_e}", flush=True)
+        return False
+
+
+def _remove_from_watchlist(ticker: str) -> bool:
+    """Delete a ticker from the watchlist. Returns True on success."""
+    ticker = ticker.strip().upper()
+    if not _has_supabase or not ticker:
+        return False
+    try:
+        _sb_delete("watchlist", {"ticker": f"eq.{ticker}"})
+        _load_watchlist_from_db.clear()
+        _load_watchlist_meta.clear()
+        return True
+    except Exception as _e:
+        print(f"[SB ERROR] _remove_from_watchlist({ticker}) failed: {_e}", flush=True)
+        return False
+
+
+# ── Sector tickers (Supabase-backed) ───────────────────────────────────────────
+# Replaces the hardcoded _SECTOR_WATCH dict — the user can now add/remove
+# tickers per sector from the UI, and the bot's auto-append job (Bundle B2)
+# will classify each new ticker into a sector automatically.
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _load_sector_tickers() -> dict:
+    """Returns dict mapping sector name → list of tickers, ordered by added_at.
+    Falls back to {} if Supabase isn't reachable — caller should then use the
+    hardcoded _SECTOR_WATCH_DEFAULTS as the fallback."""
+    if _has_supabase:
+        try:
+            rows = _sb_get("sector_tickers", {"select": "*", "order": "added_at.asc"})
+            out: dict = {}
+            for r in (rows or []):
+                out.setdefault(r["sector"], []).append(r["ticker"])
+            return out
+        except Exception as _e:
+            print(f"[SB WARN] _load_sector_tickers failed: {_e}", flush=True)
+    return {}
+
+
+def _add_sector_ticker(sector: str, ticker: str) -> bool:
+    """Insert (sector, ticker) into sector_tickers if not already there."""
+    ticker = (ticker or "").strip().upper()
+    if not _has_supabase or not ticker or not sector:
+        return False
+    try:
+        # Check if (sector, ticker) already exists
+        rows = _sb_get("sector_tickers", {
+            "sector": f"eq.{sector}",
+            "ticker": f"eq.{ticker}",
+            "select": "ticker",
+        })
+        if rows:
+            return False
+        _sb_post("sector_tickers", {"sector": sector, "ticker": ticker})
+        _load_sector_tickers.clear()
+        return True
+    except Exception as _e:
+        print(f"[SB ERROR] _add_sector_ticker({sector}, {ticker}) failed: {_e}", flush=True)
+        return False
+
+
+def _remove_sector_ticker(sector: str, ticker: str) -> bool:
+    """Delete (sector, ticker) from sector_tickers."""
+    if not _has_supabase or not ticker or not sector:
+        return False
+    try:
+        _sb_delete("sector_tickers", {
+            "sector": f"eq.{sector}",
+            "ticker": f"eq.{ticker}",
+        })
+        _load_sector_tickers.clear()
+        return True
+    except Exception as _e:
+        print(f"[SB ERROR] _remove_sector_ticker({sector}, {ticker}) failed: {_e}", flush=True)
+        return False
+
+
+# ── Defaults / seed data ───────────────────────────────────────────────────────
+# These are the values that get copied into Supabase on first run. After that
+# they're only used as a fallback if Supabase is unreachable.
+
+_SECTOR_WATCH_DEFAULTS = {
+    "⚛️ Quantum":    ["RGTI", "QBTS", "QUBT", "IONQ"],
+    "🛡️ Defense/AI": ["BBAI", "PLTR"],
+    "🚀 Space":      ["RKLB", "ASTS", "LUNR"],
+    "💾 Chips":      ["AMD", "NVDA", "MU"],
+    "₿ Crypto":     ["MARA", "RIOT", "COIN"],
+    "⚡ Momentum":   ["SOFI", "DKNG", "SNAP", "HOOD"],
+}
+
+
+def _seed_db_if_empty() -> None:
+    """One-time migration: if sector_tickers or watchlist is empty, copy the
+    hardcoded defaults in. Idempotent — safe to call on every startup."""
+    if not _has_supabase:
+        return
+    # Seed sector_tickers
+    try:
+        existing = _load_sector_tickers()
+        if not existing:
+            for _sector, _tickers in _SECTOR_WATCH_DEFAULTS.items():
+                for _t in _tickers:
+                    try:
+                        _sb_post("sector_tickers", {"sector": _sector, "ticker": _t})
+                    except Exception:
+                        pass  # PK violation if already exists — fine
+            _load_sector_tickers.clear()
+            print(f"[SEED] Seeded sector_tickers from defaults", flush=True)
+    except Exception as _e:
+        print(f"[SEED WARN] sector_tickers seed failed: {_e}", flush=True)
+    # Seed watchlist
+    try:
+        existing_wl = _load_watchlist_from_db()
+        if not existing_wl:
+            try:
+                from data.watchlist import WATCHLIST as _WL_INIT
+                for _t in _WL_INIT:
+                    try:
+                        _sb_post("watchlist", {"ticker": _t, "source": "manual"})
+                    except Exception:
+                        pass
+                _load_watchlist_from_db.clear()
+                _load_watchlist_meta.clear()
+                print(f"[SEED] Seeded watchlist from data/watchlist.py ({len(_WL_INIT)} tickers)", flush=True)
+            except Exception as _e2:
+                print(f"[SEED WARN] watchlist file import failed: {_e2}", flush=True)
+    except Exception as _e:
+        print(f"[SEED WARN] watchlist seed failed: {_e}", flush=True)
+
+
 def _update_options_position(pos_id: int, data: dict) -> None:
     """Update editable fields on an existing position. Mirrors _save_options_position
     for the user-editable columns (status/created_at/live_option_price untouched)."""
@@ -723,6 +905,21 @@ def _on_live_opt_change(pos_id: int, key: str) -> None:
 
 
 _init_db()
+
+# ── Watchlist + sector_tickers bootstrap ──────────────────────────────────────
+# Seed Supabase tables on first run, then override the in-memory WATCHLIST
+# constant in signals.indicators so all downstream scanners use the live list.
+try:
+    _seed_db_if_empty()
+    _db_wl = _load_watchlist_from_db()
+    if _db_wl:
+        try:
+            import signals.indicators as _si
+            _si.WATCHLIST = list(_db_wl)
+        except Exception as _e:
+            print(f"[BOOT WARN] couldn't override signals.indicators.WATCHLIST: {_e}", flush=True)
+except Exception as _e:
+    print(f"[BOOT WARN] watchlist bootstrap failed: {_e}", flush=True)
 
 
 # ── options scanner ───────────────────────────────────────────────────────────
@@ -2493,14 +2690,15 @@ with tab2:
     # D — Sector Watch
     # ────────────────────────────────────────────────────────────────────────
 
-    _SECTOR_WATCH = {
-        "⚛️ Quantum":    ["RGTI", "QBTS", "QUBT", "IONQ"],
-        "🛡️ Defense/AI": ["BBAI", "PLTR"],
-        "🚀 Space":      ["RKLB", "ASTS", "LUNR"],
-        "💾 Chips":      ["AMD", "NVDA", "MU"],
-        "₿ Crypto":     ["MARA", "RIOT", "COIN"],
-        "⚡ Momentum":   ["SOFI", "DKNG", "SNAP", "HOOD"],
-    }
+    # Dynamic sector → tickers map. Loads from Supabase (sector_tickers table)
+    # so the user can add/remove tickers from the UI without code changes.
+    # Falls back to the seed defaults if Supabase is unreachable.
+    _SECTOR_WATCH = _load_sector_tickers() or dict(_SECTOR_WATCH_DEFAULTS)
+    # Make sure every default sector key exists in the UI even if its ticker
+    # list is currently empty — otherwise the user can't add to a sector
+    # that has zero tickers.
+    for _sk in _SECTOR_WATCH_DEFAULTS.keys():
+        _SECTOR_WATCH.setdefault(_sk, [])
 
     with od_tab_d:
         st.markdown('<p style="font-size:0.95rem;font-weight:700;color:#1a1a1a;margin:0 0 4px;">Sector Watch</p>', unsafe_allow_html=True)
@@ -2617,6 +2815,46 @@ with tab2:
                 if _changes:
                     _load_sector_overrides.clear()  # next render fetches fresh
                     st.toast(f"Saved {_changes} annotation change{'s' if _changes != 1 else ''}", icon="💾")
+
+                # ── Manage tickers in this sector ──────────────────────────
+                with st.expander(f"⚙️  Manage tickers in {_sw_sector}", expanded=False):
+                    _add_col, _rm_col = st.columns([3, 3])
+                    with _add_col:
+                        _new_tk = st.text_input(
+                            "Add ticker",
+                            key=f"sw_add_{_sw_sector}",
+                            placeholder="e.g. AMD",
+                            label_visibility="visible",
+                        ).strip().upper()
+                        if st.button(f"➕ Add to {_sw_sector}", key=f"sw_add_btn_{_sw_sector}", use_container_width=True):
+                            if not _new_tk:
+                                st.warning("Enter a ticker first.")
+                            elif _new_tk in _sw_tickers:
+                                st.info(f"{_new_tk} is already in this sector.")
+                            else:
+                                if _add_sector_ticker(_sw_sector, _new_tk):
+                                    # Also add to overall watchlist if not already there
+                                    _add_to_watchlist(_new_tk, source="manual")
+                                    st.toast(f"Added {_new_tk} to {_sw_sector}", icon="✅")
+                                    st.rerun()
+                                else:
+                                    st.error("Couldn't save — see logs.")
+                    with _rm_col:
+                        if _sw_tickers:
+                            _rm_choice = st.selectbox(
+                                "Remove ticker",
+                                ["—"] + list(_sw_tickers),
+                                key=f"sw_rm_{_sw_sector}",
+                            )
+                            if st.button(f"🗑 Remove from {_sw_sector}", key=f"sw_rm_btn_{_sw_sector}", use_container_width=True):
+                                if _rm_choice and _rm_choice != "—":
+                                    if _remove_sector_ticker(_sw_sector, _rm_choice):
+                                        st.toast(f"Removed {_rm_choice} from {_sw_sector}", icon="🗑️")
+                                        st.rerun()
+                                    else:
+                                        st.error("Couldn't remove — see logs.")
+                        else:
+                            st.caption("No tickers in this sector yet.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
