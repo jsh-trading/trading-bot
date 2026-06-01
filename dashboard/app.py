@@ -47,7 +47,7 @@ DB_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)
 
 # ── challenge tracker constants ──────────────────────────────────────────────
 CHALLENGE_START = 201.99
-CHALLENGE_GOAL  = 1_000.00
+CHALLENGE_GOAL  = 10_000.00
 _BALANCE_PATH   = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'balance.txt'))
 _BP_PATH        = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'buying_power.txt'))
 _POSITIONS_BACKUP_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'positions_backup.json'))
@@ -1751,9 +1751,14 @@ _ch_ret_pct     = (_ch_gain / CHALLENGE_START) * 100
 _ch_gain_color  = "#00c853" if _ch_gain >= 0 else "#ff1744"
 _ch_gain_sign   = "+" if _ch_gain >= 0 else ""
 _ch_prog_w      = f"{_ch_pct_overall * 100:.1f}"
-_max_trade      = round(BUYING_POWER * 0.50)
-_m1_pct         = (400 / CHALLENGE_GOAL) * 100 if CHALLENGE_GOAL > 0 else 0
-_m2_pct         = (700 / CHALLENGE_GOAL) * 100 if CHALLENGE_GOAL > 0 else 0
+if CHALLENGE_CURRENT < 500:
+    _max_trade = 50
+elif CHALLENGE_CURRENT < 1_000:
+    _max_trade = round(CHALLENGE_CURRENT * 0.20)
+else:
+    _max_trade = round(CHALLENGE_CURRENT * 0.15)
+_m1_pct         = (2_000 / CHALLENGE_GOAL) * 100 if CHALLENGE_GOAL > 0 else 0
+_m2_pct         = (5_000 / CHALLENGE_GOAL) * 100 if CHALLENGE_GOAL > 0 else 0
 
 _tracker_pos_df = _load_options_positions()
 _open_pos_df    = _tracker_pos_df[_tracker_pos_df["status"] == "Open"] if not _tracker_pos_df.empty else pd.DataFrame()
@@ -1861,9 +1866,9 @@ st.markdown(
     f'<div style="position:absolute;top:0;left:{_m1_pct:.1f}%;width:2px;height:10px;background:#1565c0;"></div>'
     f'<div style="position:absolute;top:0;left:{_m2_pct:.1f}%;width:2px;height:10px;background:#ff9800;"></div>'
     f'<div style="position:absolute;top:14px;left:{_m1_pct:.1f}%;transform:translateX(-50%);'
-    f'font-size:0.6rem;color:#1565c0;font-weight:700;white-space:nowrap;">$400 · First Double</div>'
+    f'font-size:0.6rem;color:#1565c0;font-weight:700;white-space:nowrap;">$2,000 · Next Double</div>'
     f'<div style="position:absolute;top:14px;left:{_m2_pct:.1f}%;transform:translateX(-50%);'
-    f'font-size:0.6rem;color:#ff9800;font-weight:700;white-space:nowrap;">$700 · Next Milestone</div>'
+    f'font-size:0.6rem;color:#ff9800;font-weight:700;white-space:nowrap;">$5,000 · Halfway</div>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True,
@@ -1913,12 +1918,12 @@ elif 15 * 60 + 30 <= _now_mins < 16 * 60:
         unsafe_allow_html=True,
     )
 
-# ── tabs (Options Desk is first / default) ────────────────────────────────────
-tab2, tab1, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+# ── tabs (Trade Log first, then Options Desk) ─────────────────────────────────
+tab4, tab2, tab1, tab3, tab5, tab6, tab7, tab8 = st.tabs([
+    "📒  Trade Log",
     "⚡  Options Desk",
     "📊  Signals",
     "🔍  Research",
-    "📒  Trade Log",
     "🌍  Market Intel",
     "🎯  Stock Scorer",
     "⚡  Scenario Engine",
