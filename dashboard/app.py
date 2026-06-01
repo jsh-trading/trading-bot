@@ -477,26 +477,58 @@ def _init_db():
 
 
 def _save_trade(ticker, trade_date, entry, exit_price, notes):
-    with get_db_connection() as conn:
-        conn.execute(
-            "INSERT INTO trades (ticker, trade_date, entry_price, exit_price, notes) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (ticker.upper(), str(trade_date), float(entry),
-             float(exit_price) if exit_price else None,
-             notes.strip() or None),
-        )
+    payload = {
+        "ticker":      ticker.upper(),
+        "trade_date":  str(trade_date),
+        "entry_price": float(entry),
+        "exit_price":  float(exit_price) if exit_price else None,
+        "notes":       notes.strip() or None,
+    }
+    if _has_supabase:
+        _sb_post("trades", payload)
+    else:
+        with get_db_connection() as conn:
+            conn.execute(
+                "INSERT INTO trades (ticker, trade_date, entry_price, exit_price, notes) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (ticker.upper(), str(trade_date), float(entry),
+                 float(exit_price) if exit_price else None,
+                 notes.strip() or None),
+            )
+
+
+def _update_trade(trade_id, exit_price, notes):
+    if _has_supabase:
+        _sb_patch("trades", {"id": f"eq.{trade_id}"}, {
+            "exit_price": float(exit_price) if exit_price else None,
+            "notes":      notes.strip() or None,
+        })
+
+
+def _delete_trade(trade_id):
+    if _has_supabase:
+        _sb_delete("trades", {"id": f"eq.{trade_id}"})
 
 
 def _load_trades() -> pd.DataFrame:
-    with get_db_connection() as conn:
-        df = pd.read_sql_query(
-            "SELECT id, ticker, trade_date, entry_price, exit_price, notes "
-            "FROM trades ORDER BY trade_date DESC, id DESC", conn)
+    try:
+        if _has_supabase:
+            rows = _sb_get("trades", {"order": "trade_date.desc,id.desc"})
+            if not rows:
+                return pd.DataFrame(columns=["id", "ticker", "trade_date", "entry_price", "exit_price", "notes"])
+            df = pd.DataFrame(rows)[["id", "ticker", "trade_date", "entry_price", "exit_price", "notes"]]
+        else:
+            with get_db_connection() as conn:
+                df = pd.read_sql_query(
+                    "SELECT id, ticker, trade_date, entry_price, exit_price, notes "
+                    "FROM trades ORDER BY trade_date DESC, id DESC", conn)
+    except Exception:
+        return pd.DataFrame(columns=["id", "ticker", "trade_date", "entry_price", "exit_price", "notes"])
     if df.empty:
         return df
     df["P/L %"] = df.apply(
-        lambda r: round((r.exit_price - r.entry_price) / r.entry_price * 100, 2)
-                  if pd.notna(r.exit_price) else None, axis=1)
+        lambda r: round((float(r["exit_price"]) - float(r["entry_price"])) / float(r["entry_price"]) * 100, 2)
+                  if pd.notna(r["exit_price"]) and r["exit_price"] is not None else None, axis=1)
     return df
 
 
@@ -3225,6 +3257,36 @@ with tab4:
             "P/L %":   lambda v: f"{v:+.2f}%" if pd.notna(v) else "Open",
         })
         st.dataframe(sty, use_container_width=True, hide_index=True)  # noqa
+
+        # ── Edit / Delete a trade ──────────────────────────────────────────
+        with st.expander("✏️ Edit or Delete a Trade"):
+            if not trades.empty:
+                trade_labels = [
+                    f"{row['ticker']} | {row['trade_date']} | entry ${row['entry_price']:.2f}"
+                    for _, row in trades.iterrows()
+                ]
+                selected_label = st.selectbox("Select trade to edit", trade_labels, key="edit_trade_select")
+                sel_idx = trade_labels.index(selected_label)
+                sel_row = trades.iloc[sel_idx]
+                sel_id  = int(sel_row["id"])
+                ec1, ec2 = st.columns(2)
+                new_exit = ec1.number_input(
+                    "Exit Price ($)", min_value=0.0, step=0.01, format="%.2f",
+                    value=float(sel_row["exit_price"]) if pd.notna(sel_row["exit_price"]) and sel_row["exit_price"] is not None else 0.0,
+                    key="edit_exit",
+                )
+                new_notes = st.text_area("Notes", value=sel_row["notes"] or "", key="edit_notes")
+                eu1, eu2 = st.columns(2)
+                if eu1.button("💾 Save Changes", use_container_width=True):
+                    _update_trade(sel_id, new_exit if new_exit > 0 else None, new_notes)
+                    st.success("✅ Trade updated.")
+                    st.rerun()
+                if eu2.button("🗑️ Delete Trade", use_container_width=True):
+                    _delete_trade(sel_id)
+                    st.warning("🗑️ Trade deleted.")
+                    st.rerun()
+            else:
+                st.info("No trades to edit yet.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

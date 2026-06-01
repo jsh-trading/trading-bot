@@ -1,0 +1,106 @@
+==================================================================
+  DAILY TRADING BRIEF — Wednesday, May 13 2026
+  Started: 08:02:53  |  Log → logs/run_2026-05-13.log
+==================================================================
+
+[1/3]  Refreshing market data…
+  ✗  FAILED (exit 1)
+     $SOFI: possibly delisted; no price data found  (period=1y)
+     $PLTR: possibly delisted; no price data found  (period=1y)
+     $AMD: possibly delisted; no price data found  (period=1y)
+     $BAC: possibly delisted; no price data found  (period=1y)
+     $WFC: possibly delisted; no price data found  (period=1y)
+     $KEY: possibly delisted; no price data found  (period=1y)
+     $F: possibly delisted; no price data found  (period=1y)
+     $GM: possibly delisted; no price data found  (period=1y)
+     $UBER: possibly delisted; no price data found  (period=1y)
+     $PYPL: possibly delisted; no price data found  (period=1y)
+     Failed to get ticker 'SQ' reason: Failed to perform, curl: (6) Could not resolve host: query1.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+     Traceback (most recent call last):
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/curl_cffi/requests/session.py", line 732, in _request_once
+         c.perform()
+         ~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/curl_cffi/curl.py", line 505, in perform
+         self._check_error(ret, "perform")
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/curl_cffi/curl.py", line 269, in _check_error
+         raise error
+     curl_cffi.curl.CurlError: Failed to perform, curl: (6) Could not resolve host: query1.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+     
+     The above exception was the direct cause of the following exception:
+     
+     Traceback (most recent call last):
+       File "/Users/kast3000/Desktop/trading-bot/data/market_data.py", line 108, in <module>
+         main()
+         ~~~~^^
+       File "/Users/kast3000/Desktop/trading-bot/data/market_data.py", line 98, in main
+         fetch_and_save(ticker, conn)
+         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+       File "/Users/kast3000/Desktop/trading-bot/data/market_data.py", line 53, in fetch_and_save
+         df = yf.Ticker(ticker).history(period=PERIOD)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 129, in history
+         return self._lazy_load_price_history().history(*args, **kwargs)
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 135, in _lazy_load_price_history
+         self._price_history = PriceHistory(self._data, self.ticker, self._get_ticker_tz(timeout=10))
+                                                                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 160, in _get_ticker_tz
+         if k in self.info:
+                 ^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/ticker.py", line 159, in info
+         return self.get_info()
+                ~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/base.py", line 282, in get_info
+         data = self._quote.info
+                ^^^^^^^^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/scrapers/quote.py", line 505, in info
+         self._fetch_info()
+         ~~~~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/scrapers/quote.py", line 620, in _fetch_info
+         result = self._fetch(modules=modules)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/scrapers/quote.py", line 596, in _fetch
+         result = self._data.get_raw_json(_QUOTE_SUMMARY_URL_ + f"/{self._symbol}", params=params_dict)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/data.py", line 462, in get_raw_json
+         response = self.get(url, params=params, timeout=timeout)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/data.py", line 375, in get
+         response = self._make_request(url, request_method = self._session.get, params=params, timeout=timeout)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/data.py", line 409, in _make_request
+         crumb, strategy = self._get_cookie_and_crumb()
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/data.py", line 365, in _get_cookie_and_crumb
+         crumb = self._get_cookie_and_crumb_basic(timeout)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/data.py", line 246, in _get_cookie_and_crumb_basic
+         return self._get_crumb_basic(timeout)
+                ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/utils.py", line 95, in wrapper
+         result = func(*args, **kwargs)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/yfinance/data.py", line 229, in _get_crumb_basic
+         crumb_response = self._session.get(**get_args)
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/curl_cffi/requests/session.py", line 842, in get
+         return self.request(method="GET", url=url, **kwargs)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/curl_cffi/requests/session.py", line 795, in request
+         return self._request_once(
+                ~~~~~~~~~~~~~~~~~~^
+             method=method,
+             ^^^^^^^^^^^^^^
+         ...<32 lines>...
+             discard_cookies=discard_cookies,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         )
+         ^
+       File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/curl_cffi/requests/session.py", line 739, in _request_once
+         raise error(str(e), e.code, rsp) from e
+     curl_cffi.requests.exceptions.DNSError: Failed to perform, curl: (6) Could not resolve host: query1.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+
+  Aborting — market data refresh failed.

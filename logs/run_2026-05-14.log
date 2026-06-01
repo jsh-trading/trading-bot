@@ -1,0 +1,66 @@
+==================================================================
+  DAILY TRADING BRIEF — Thursday, May 14 2026
+  Started: 08:00:05  |  Log → logs/run_2026-05-14.log
+==================================================================
+
+[1/3]  Refreshing market data…
+  ✓  Done in 7.0s — 38 new price row(s) added
+
+[2/3]  Scoring watchlist  (Buy Signal = Score × 0.4 + ML Conf × 0.6)…
+
+  [SKIP] SQ: only 0 rows — need 200+ for SMA-200
+  Ticker  Buy Signal     Score   ML Conf      Close    RSI
+  ───────────────────────────────────────────────────────────────
+  AMD           61.8    40/100     76.3%    $445.50   76.2
+  F             60.2    60/100     60.4%     $13.57   67.5
+  RIOT          59.1    40/100     71.9%     $24.92   73.4
+  INTC          58.8    40/100     71.4%    $120.29   74.8
+  SNAP          56.9    40/100     68.2%      $5.61   48.0
+  HOOD          54.9    40/100     64.8%     $76.75   47.8
+  MARA          54.3    20/100     77.1%     $12.75   62.1
+  UBER          54.0    40/100     63.4%     $74.70   49.0
+  GM            52.0    60/100     46.6%     $75.81   45.7
+  DKNG          49.6    20/100     69.3%     $25.03   59.3
+  PLTR          48.9    40/100     54.8%    $130.05   38.4
+  COIN          48.8    20/100     68.0%    $201.80   53.4
+  T             47.8    40/100     53.0%     $24.74   34.9
+  SOFI          45.7    20/100     62.8%     $15.31   37.2
+  KEY           45.5    40/100     49.2%     $20.75   39.6
+  RBLX          44.2     0/100     73.6%     $41.96   29.7
+  WFC           42.8    20/100     58.0%     $73.53   33.3
+  PYPL          39.7    20/100     52.8%     $45.23   38.2
+  BAC           39.5    20/100     52.5%     $49.84   38.0
+  ───────────────────────────────────────────────────────────────
+
+[3/3]  Running momentum screener across 101 small/mid-cap tickers…
+  Downloading 226 tickers (period=3mo) …
+  Usable data for 58 / 226 tickers.
+
+  → 0 candidates passed all four filters today.
+
+==================================================================
+  ★  SUMMARY
+──────────────────────────────────────────────────────────────────
+  Watchlist — 17 stock(s) with Buy Signal ≥ 40:
+    →  AMD    Buy Signal 61.8  |  Score 40/100  ML 76%
+    →  F      Buy Signal 60.2  |  Score 60/100  ML 60%
+    →  RIOT   Buy Signal 59.1  |  Score 40/100  ML 72%
+    →  INTC   Buy Signal 58.8  |  Score 40/100  ML 71%
+    →  SNAP   Buy Signal 56.9  |  Score 40/100  ML 68%
+    →  HOOD   Buy Signal 54.9  |  Score 40/100  ML 65%
+    →  MARA   Buy Signal 54.3  |  Score 20/100  ML 77%
+    →  UBER   Buy Signal 54.0  |  Score 40/100  ML 63%
+    →  GM     Buy Signal 52.0  |  Score 60/100  ML 47%
+    →  DKNG   Buy Signal 49.6  |  Score 20/100  ML 69%
+    →  PLTR   Buy Signal 48.9  |  Score 40/100  ML 55%
+    →  COIN   Buy Signal 48.8  |  Score 20/100  ML 68%
+    →  T      Buy Signal 47.8  |  Score 40/100  ML 53%
+    →  SOFI   Buy Signal 45.7  |  Score 20/100  ML 63%
+    →  KEY    Buy Signal 45.5  |  Score 40/100  ML 49%
+    →  RBLX   Buy Signal 44.2  |  Score 0/100  ML 74%
+    →  WFC    Buy Signal 42.8  |  Score 20/100  ML 58%
+
+  Screener — no momentum candidates today.
+
+  Completed in 15.7s
+==================================================================
